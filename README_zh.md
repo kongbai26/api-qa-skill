@@ -63,15 +63,15 @@ git clone https://github.com/kongbai26/api-qa-skill.git
 ```
 
 ### 2. 通用交互提示词（复制即用）
-在任何 AI Agent 或对话框中直接发送以下提示词，并将 `[...]` 中的内容替换为你的实际信息：
+在任何 AI Agent 或对话框中直接发送以下提示词，将 `[...]` 中的内容替换为你的实际信息（没有的项直接写“无”即可）：
 
 ```text
 请阅读并严格遵循 `./api-qa-skill/SKILL.md` 的工程规约，为以下接口设计并生成一套生产级自动化测试工程：
 
-- 测试目标目录：[你的测试目录路径，例如 ./tests/api-test]
-- API 基地址：[你的 API 服务地址，例如 https://api.example.com]
-- 接口定义文档：[粘贴你的 Swagger / OpenAPI / Markdown / 接口列表]
-- 认证鉴权信息：[例如 Bearer Token / API Key / 登录接口账号密码 / 无需认证]
+- 测试目标目录：[你的测试工程路径，例如 ./tests/api-test；不指定可写“无”]
+- API 基地址：[你的 API 服务基准地址，例如 https://api.example.com]
+- 接口定义文档：[粘贴你的 Swagger / OpenAPI / Markdown / 接口清单]
+- 认证鉴权信息：[例如 Bearer Token / API Key / 登录账号密码；没有或无需认证直接写“无”]
 ```
 
 ---

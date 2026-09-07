@@ -71,15 +71,15 @@ git clone https://github.com/kongbai26/api-qa-skill.git
 ```
 
 ### 2. Universal Prompt Template (Copy & Run)
-Paste the following prompt into any AI Agent conversation, replacing the `[...]` placeholders with your actual project details:
+Paste the following prompt into any AI Agent conversation, replacing the `[...]` placeholders with your actual project details (simply write "None" for any item that does not apply):
 
 ```text
 Please read and strictly follow the engineering protocol in `./api-qa-skill/SKILL.md` to design and implement a production-ready API automated test suite:
 
-- Target Project Directory: [Path to your test suite, e.g., ./tests/api-tests]
+- Target Project Directory: [Path to your test suite, e.g., ./tests/api-tests; or write "None" for default]
 - API Base URL: [Your API Base URL, e.g., https://api.example.com]
 - API Specification: [Paste your Swagger JSON / OpenAPI YAML / Markdown / endpoint list]
-- Authentication: [Select: Bearer Token / API Key / Login credentials / None]
+- Authentication: [Specify: Bearer Token / API Key / Login credentials; or write "None" if unauthenticated]
 ```
 
 ---
