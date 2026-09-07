@@ -52,23 +52,39 @@ api-qa-skill/
 
 ---
 
-## 🛠️ 安装与使用方法
+## 🛠️ 安装与通用使用方法
 
-### 1. 在 Antigravity (AGY) 中使用
-将本项目克隆至 Agent 的 Skills 目录下：
+本项目设计为**高度通用、模型无关（Model-Agnostic）的 Agent 规范资产**。无论你使用的是终端命令行 Agent、AI 编程 IDE、自主编程扩展，还是普通网页端大模型，都可以无缝运行。
+
+### 1. 快速获取
+将仓库克隆到你的工作区或本地目录：
 ```bash
-# 全局生效（推荐）
-git clone https://github.com/kongbai26/api-qa-skill.git ~/.gemini/antigravity-cli/skills/api-qa-skill
-
-# 或仅在当前项目生效
-git clone https://github.com/kongbai26/api-qa-skill.git .agents/skills/api-qa-skill
+git clone https://github.com/kongbai26/api-qa-skill.git
 ```
-在对话中提供 API 文档或接口列表，Agent 会自动激活路由。
 
-### 2. 在 Claude Code / Cursor / Windsurf 中使用
-* **Claude Code**：在项目根目录的 `CLAUDE.md` 中引用此 Skill，或在对话中提示：
-  > “请严格读取并按照 `./api-qa-skill/SKILL.md` 的规范执行 API 自动化测试。”
-* **Cursor / Windsurf**：可作为 Rule 引用或将其路径加入提示词上下文。
+### 2. 通用交互提示词（复制即用）
+在任何 AI Agent 或对话框中，发送以下标准提示词（替换方括号内容）：
+
+```text
+请阅读并严格遵循 `./api-qa-skill/SKILL.md` 中的工程规约，为以下接口设计并生成一套生产级自动化测试套件：
+
+- 测试目标目录：`./tests/api-test`（或你指定的路径）
+- API 基地址：`https://api.example.com`
+- 接口文档/定义：[粘贴你的 Swagger JSON / OpenAPI YAML / Markdown / 接口列表]
+- 认证信息：Bearer Token / API Key / 无认证（如有登录接口请注明）
+```
+
+---
+
+### 3. 主流 AI 工具生态集成速查
+
+| 工具类别 | 代表平台 | 推荐集成与使用方式 |
+| :--- | :--- | :--- |
+| **Agent CLI / 终端助手** | **Claude Code**<br>**Antigravity (AGY)**<br>**Aider / Goose / OpenCode** | 克隆至项目根目录或全局技能目录：<br>• **Antigravity**: `git clone https://github.com/kongbai26/api-qa-skill.git ~/.gemini/antigravity-cli/skills/api-qa-skill`<br>• **Claude Code**: 在 `CLAUDE.md` 中增加 `参考 ./api-qa-skill/SKILL.md 执行接口自动化测试`<br>• **Aider / Goose**: 启动时传入参数 `--message "阅读 ./api-qa-skill/SKILL.md 并执行..."` |
+| **AI 原生 IDE / 编辑器** | **Cursor**<br>**Windsurf**<br>**GitHub Copilot (VS Code)** | • **Cursor**: 在 `.cursor/rules/api-qa.mdc` 或 Composer 中通过 `@api-qa-skill/SKILL.md` 引用<br>• **Windsurf**: 在 `.windsurfrules` 中引入规约文件<br>• **Copilot**: 在对话中输入 `@workspace` 并引用 `./api-qa-skill/SKILL.md` |
+| **自主编程插件** | **Cline / Roo Code**<br>**Continue.dev** | 放入工作区。在 Custom Instructions / 规则中配置：<br>`"当需要生成或维护 API 自动化测试时，必须严格阅读并执行 ./api-qa-skill/SKILL.md"` |
+| **网页端 / API 大模型** | **ChatGPT / Claude.ai**<br>**DeepSeek / Gemini / Kimi** | 直接将 `SKILL.md` 作为文件附件上传或填入系统提示词。提供接口文档，大模型即可作为高级 QA 架构师输出全套用例设计与测试脚本。 |
+| **独立工程脚手架** | **QA 工程师 / CI/CD 流水线** | 无需任何 AI Agent。直接复用 `_templates/report_generator.py` 与 `reference/implementation.md` 作为现代 pytest + Allure 自动化测试项目的标准工程骨架。 |
 
 ---
 

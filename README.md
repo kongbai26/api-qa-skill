@@ -6,7 +6,7 @@
 [![Python: 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/)
 [![Framework: Pytest](https://img.shields.io/badge/framework-pytest-orange.svg)](https://docs.pytest.org/)
 [![Reporting: Allure & LiteReport](https://img.shields.io/badge/reporting-Allure%20%7C%20LiteReport-yellow.svg)](https://allurereport.org/)
-[![Compatible Agents](https://img.shields.io/badge/agents-Antigravity%20%7C%20Claude%20Code%20%7C%20Cursor%20%7C%20Windsurf-purple.svg)](#️-installation--usage)
+[![Compatible Agents](https://img.shields.io/badge/agents-Universal%20AI%20Agents-purple.svg)](#️-installation--usage)
 
 > **Production-Ready API Automation Testing Skill for AI Agents**  
 > An enterprise-grade, end-to-end API automated testing workflow designed for AI Coding Agents (Google Antigravity, Claude Code, Cursor, Windsurf, etc.). Powered by `pytest` + `Allure`, covering live API probing, multi-dimensional test design, self-healing debugging, and turnkey report delivery.
@@ -60,27 +60,39 @@ api-qa-skill/
 
 ---
 
-## 🛠️ Installation & Usage
+## 🛠️ Installation & Universal Usage
 
-### 1. In Google Antigravity (AGY)
-Install the skill into your AGY skills path:
+`api-qa-skill` is engineered as a **universal, model-agnostic Agent engineering specification**. Whether you use terminal coding agents, AI-powered IDEs, autonomous extensions, or web-based LLMs, you can seamlessly integrate it into your workflow.
+
+### 1. Quick Clone
+Clone this repository into your workspace or local environment:
 ```bash
-# Global installation (recommended)
-git clone https://github.com/kongbai26/api-qa-skill.git ~/.gemini/antigravity-cli/skills/api-qa-skill
-
-# Or workspace-scoped installation
-git clone https://github.com/kongbai26/api-qa-skill.git .agents/skills/api-qa-skill
+git clone https://github.com/kongbai26/api-qa-skill.git
 ```
-Once installed, simply prompt your Agent with your API documentation or endpoints list. The Agent will automatically activate the skill and prompt the routing decision.
 
-### 2. In Claude Code
-Reference this skill in your project's `CLAUDE.md`, or prompt directly:
+### 2. Universal Prompt Template (Copy & Run)
+In any AI Agent conversation or prompt box, paste the following universal prompt (replace the bracketed placeholders):
+
 ```text
-Please read and strictly follow the testing protocol in ./api-qa-skill/SKILL.md to build the API test suite.
+Please read and strictly follow the engineering protocol in `./api-qa-skill/SKILL.md` to design and implement a production-ready API automated test suite:
+
+- Target Project Directory: `./tests/api-tests` (or your preferred path)
+- API Base URL: `https://api.example.com`
+- API Specification: [Paste your Swagger JSON / OpenAPI YAML / Markdown / Endpoint list here]
+- Authentication: Bearer Token / API Key / None (Specify login endpoint if applicable)
 ```
 
-### 3. In Cursor / Windsurf
-Add `api-qa-skill/SKILL.md` to your workspace Rules or add the skill path into your composer prompt context.
+---
+
+### 3. Integration Matrix Across AI Ecosystems
+
+| Ecosystem | Supported Platforms | Recommended Integration |
+| :--- | :--- | :--- |
+| **Terminal Coding Agents** | **Claude Code**<br>**Google Antigravity (AGY)**<br>**Aider / Goose / OpenCode** | Clone into workspace root or global skills directory:<br>• **Antigravity**: `git clone https://github.com/kongbai26/api-qa-skill.git ~/.gemini/antigravity-cli/skills/api-qa-skill`<br>• **Claude Code**: Add `Refer to ./api-qa-skill/SKILL.md for API test generation.` in `CLAUDE.md`<br>• **Aider / Goose**: Run with `--message "Read ./api-qa-skill/SKILL.md..."` |
+| **AI-Native IDEs** | **Cursor**<br>**Windsurf**<br>**GitHub Copilot (VS Code)** | • **Cursor**: Reference `@api-qa-skill/SKILL.md` in `.cursor/rules/api-qa.mdc` or directly in the Composer<br>• **Windsurf**: Add rule in `.windsurfrules`<br>• **Copilot**: Mention `@workspace` and reference `./api-qa-skill/SKILL.md` |
+| **Autonomous Agent Extensions** | **Cline / Roo Code**<br>**Continue.dev** | Place in workspace. Add to Custom Instructions / System Rules:<br>`"When generating or maintaining API tests, strictly follow ./api-qa-skill/SKILL.md."` |
+| **Web & API LLMs** | **ChatGPT / Claude.ai**<br>**DeepSeek / Gemini / Kimi** | Upload `SKILL.md` as an attachment or system prompt. Provide your API documentation, and the model will act as an expert QA architect generating full test suites and case specifications. |
+| **Manual QA Scaffolding** | **QA Engineers / CI/CD Pipelines** | Zero Agent required. Reuse `_templates/report_generator.py` and `reference/implementation.md` as an out-of-the-box template for standard pytest + Allure automation projects. |
 
 ---
 
