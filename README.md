@@ -29,6 +29,7 @@ Most testing agents fall into common traps: hallucinating API responses, writing
   * **When Allure is missing**: Uses the built-in pure Python **LiteReport Generator** to output a beautiful, standalone interactive HTML dashboard (`report.html`) with zero Java / Node.js dependencies.
 * 📐 **9-Dimension Industrial Test Coverage**: Functional happy paths, data integrity, authentication/authorization, parameter validation, boundary values, business rules, security/injection defense, CRUD chaining, and unified error format.
 * 🔄 **Self-Healing Debug Loop (Up to 5 Rounds)**：Automatically runs the test suite, parses tracebacks, categorizes failures into assertion adjustments vs. actual server defects, and fixes code iteratively until clean pass.
+* ⚡ **Local & Cloud Model Friendly**: Thanks to progressive context disclosure and deterministic code templates, the skill minimizes prompt bloat and cognitive overhead. It delivers reliable, robust results not only on frontier cloud models (Claude 3.5/3.7, GPT-4o, Gemini 2.0/2.5) but also on local open-source models (e.g., Qwen 2.5-Coder, DeepSeek-Coder, Llama 3 via Ollama / vLLM / LM Studio) without hallucinations or dropped instructions.
 * 📦 **Turnkey Cross-Platform Execution**: Delivers pre-configured `run.sh` (macOS/Linux) and `run.bat` (Windows) scripts with automated environment verification for one-click reproducibility.
 
 ---
