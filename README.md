@@ -133,18 +133,6 @@ Upon completion, the Agent outputs a fully standalone, production-ready test rep
 
 ---
 
-## 🤝 Contributing & Guidelines
-
-Contributions are welcome! If you have suggestions for improving test generation strategies, defensive assertions, or supporting additional agent environments, please open an issue or submit a PR.
-
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/amazing-feature`)
-3. Commit your Changes (`git commit -m 'feat: add amazing feature'`)
-4. Push to the Branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
----
-
 ## 📄 License
 
-Distributed under the [Apache-2.0 License](LICENSE). Feel free to use, modify, and integrate it into your automated workflows.
+Distributed under the [Apache-2.0 License](LICENSE). Issues and Pull Requests are welcome!
