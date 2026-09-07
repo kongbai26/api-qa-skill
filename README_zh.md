@@ -32,6 +32,7 @@ api-qa-skill/
 ├── SKILL.md                     # Agent 入口文件（前置路由、红线规约、环境规范）
 ├── README.md                    # 项目说明文档 (English)
 ├── README_zh.md                 # 项目说明文档 (简体中文)
+├── LICENSE                      # Apache-2.0 开源协议
 ├── _templates/
 │   └── report_generator.py      # LiteReport 独立单文件 HTML 测试报告生成器
 └── reference/
@@ -54,14 +55,13 @@ api-qa-skill/
 ## 🛠️ 安装与使用方法
 
 ### 1. 在 Antigravity (AGY) 中使用
-将本项目目录放置于 Agent 的 Skills 目录下：
+将本项目克隆至 Agent 的 Skills 目录下：
 ```bash
-# 全局生效
-cp -r api-qa-skill ~/.gemini/antigravity-cli/skills/
+# 全局生效（推荐）
+git clone https://github.com/kongbai26/api-qa-skill.git ~/.gemini/antigravity-cli/skills/api-qa-skill
 
 # 或仅在当前项目生效
-mkdir -p .agent/skills/
-cp -r api-qa-skill .agent/skills/
+git clone https://github.com/kongbai26/api-qa-skill.git .agents/skills/api-qa-skill
 ```
 在对话中提供 API 文档或接口列表，Agent 会自动激活路由。
 

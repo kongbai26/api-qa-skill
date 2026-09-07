@@ -40,7 +40,7 @@ api-qa-skill/
 ├── SKILL.md                     # Agent skill entrypoint (router, redlines, environment rules)
 ├── README.md                    # English documentation
 ├── README_zh.md                 # Chinese documentation
-├── LICENSE                      # MIT License
+├── LICENSE                      # Apache-2.0 License
 ├── _templates/
 │   └── report_generator.py      # Zero-dependency LiteReport standalone HTML generator
 └── reference/
@@ -63,14 +63,13 @@ api-qa-skill/
 ## 🛠️ Installation & Usage
 
 ### 1. In Google Antigravity (AGY)
-Place the skill directory into your AGY skills path:
+Install the skill into your AGY skills path:
 ```bash
 # Global installation (recommended)
-cp -r api-qa-skill ~/.gemini/antigravity-cli/skills/
+git clone https://github.com/kongbai26/api-qa-skill.git ~/.gemini/antigravity-cli/skills/api-qa-skill
 
 # Or workspace-scoped installation
-mkdir -p .agent/skills/
-cp -r api-qa-skill .agent/skills/
+git clone https://github.com/kongbai26/api-qa-skill.git .agents/skills/api-qa-skill
 ```
 Once installed, simply prompt your Agent with your API documentation or endpoints list. The Agent will automatically activate the skill and prompt the routing decision.
 
