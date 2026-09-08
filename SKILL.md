@@ -1,5 +1,5 @@
 ---
-name: api-qa-skill
+name: api-test
 description: API 自动化测试：pytest+Allure 框架，5 阶段完整工作流 + 快速路径（≤5 接口），生成专业测试报告
 tools: curl, web_fetch, web_search, get_datetime, format_datetime, read_file, save_file, edit_file, list_files, grep_search, glob_search, shell_exec, memory_recall, memory_save, report_build, Skill
 ---

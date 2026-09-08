@@ -70,9 +70,13 @@ shell_exec(command="cd \"<PROJECT_DIR>\" && <PYTHON> -m pip install -r requireme
 - **如果 API_TOKEN 已配置** → 直接调用接口
 - **如果 API_TOKEN 未配置** → 需要调用登录接口获取 token
 
-用 `curl` 命令调每个接口，记录实际返回，比对文档差异。
+用 `curl` 工具或 `shell_exec(curl)` 命令调每个接口，记录实际返回，比对文档差异。
 
 如果 API 需要登录获取 token：
+```
+curl(url="<登录接口URL>", method="POST", body='{"username":"xxx","password":"xxx"}', headers='{"Content-Type": "application/json"}')
+```
+或：
 ```
 shell_exec(command="curl -s -X POST '<登录接口URL>' -H 'Content-Type: application/json' -d '{\"username\":\"xxx\",\"password\":\"xxx\"}'")
 ```

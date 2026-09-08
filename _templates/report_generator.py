@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-LiteReport 测试报告生成器
+Zb-Report 测试报告生成器
 ========================
 从 allure-results/*.json 生成轻量单 HTML 测试报告。
 内置 CSS/JS 渲染，无需外部依赖。
@@ -10,7 +10,7 @@ LiteReport 测试报告生成器
     python utils/report_generator.py --input allure-results --output allure-report/report.html
 """
 
-import json, os, sys, glob, hashlib, base64, gzip, uuid as _uuid, html as _html
+import json, os, sys, glob, hashlib, base64, gzip, io, html as _html
 from pathlib import Path
 
 
@@ -27,7 +27,36 @@ def read_binary(path):
         with open(path, "rb") as f: return f.read()
     except: return b""
 
-def uid(): return _uuid.uuid4().hex[:16]
+_uid_counter = 0
+
+def _reset_uids():
+    global _uid_counter
+    _uid_counter = 0
+
+def uid():
+    """Return a deterministic report-local ID instead of a random UUID."""
+    global _uid_counter
+    _uid_counter += 1
+    return f"tcli-{_uid_counter:016x}"
+
+def write_text_if_changed(path, content):
+    """Keep this standalone template from rewriting byte-identical reports."""
+    output = Path(path)
+    try:
+        if output.read_text(encoding="utf-8") == content:
+            return False
+    except OSError:
+        pass
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(content, encoding="utf-8")
+    return True
+
+def compress_deterministically(data):
+    """Create gzip bytes without embedding the current wall-clock time."""
+    buffer = io.BytesIO()
+    with gzip.GzipFile(fileobj=buffer, mode="wb", filename="", mtime=0, compresslevel=9) as stream:
+        stream.write(data)
+    return buffer.getvalue()
 
 _TEXT_MIMES = {"text/", "application/json", "application/xml", "application/javascript", "application/csv"}
 def is_text_mime(mime):
@@ -63,7 +92,7 @@ def gl(r, name):
 
 def load_results(d):
     rs = []
-    for fp in glob.glob(os.path.join(d, "*-result.json")):
+    for fp in sorted(glob.glob(os.path.join(d, "*-result.json"))):
         try:
             with open(fp, "r", encoding="utf-8") as f: rs.append(json.load(f))
         except: pass
@@ -72,7 +101,7 @@ def load_results(d):
 def load_containers(d):
     """加载 container.json，返回 {child_uuid: [container, ...]} 映射（一个用例可能关联多个 container）"""
     mapping = {}
-    for fp in glob.glob(os.path.join(d, "*-container.json")):
+    for fp in sorted(glob.glob(os.path.join(d, "*-container.json"))):
         try:
             with open(fp, "r", encoding="utf-8") as f:
                 c = json.load(f)
@@ -108,14 +137,14 @@ def stat(rs):
 _exec_order = {}  # uuid -> execution order number
 
 def leaf(r):
-    return {"name":r.get("name",""),"uid":r.get("uuid",uid()),"parentUid":"",
+    return {"name":r.get("name",""),"uid":r.get("uuid") or uid(),"parentUid":"",
             "status":r.get("status","unknown"),"order":_exec_order.get(r.get("uuid"),0),
             "time":{"start":r.get("start",0),"stop":r.get("stop",0),"duration":r.get("stop",0)-r.get("start",0)},
             "flaky":False,"newFailed":False,"newPassed":False,"newBroken":False,
             "retriesCount":0,"retriesStatusChange":False,"parameters":[],"tags":[]}
 
 def test_item(r):
-    return {"uid":r.get("uuid",uid()),"name":r.get("name",""),
+    return {"uid":r.get("uuid") or uid(),"name":r.get("name",""),
             "time":{"start":r.get("start",0),"stop":r.get("stop",0),"duration":r.get("stop",0)-r.get("start",0)},
             "status":r.get("status","unknown"),"severity":gl(r,"severity") or "normal"}
 
@@ -145,7 +174,7 @@ def test_case(r, results_dir, containers=None, source_map=None):
 
     steps = [_process_step(step) for step in r.get("steps", []) if isinstance(step, dict)]
     sd = r.get("statusDetails", {})
-    t_uid = r.get("uuid", uid())
+    t_uid = r.get("uuid") or uid()
     fn = r.get("fullName", r.get("name", ""))
     desc = r.get("description", "")
     desc_html = f"<p>{_html.escape(desc)}</p>" if desc else ""
@@ -243,11 +272,12 @@ def timeline_tree(results):
 
 
 def generate_report(results_dir="allure-results", output="allure-report/report.html"):
+    _reset_uids()
     results = load_results(results_dir)
     if not results:
         print(f"未找到: {results_dir}/*-result.json")
         sys.exit(1)
-    results.sort(key=lambda r: r.get("start", 0))  # 按执行时间排序（Allure 默认顺序）
+    results.sort(key=lambda r: (r.get("start", 0), r.get("uuid", ""), r.get("name", "")))
     global _exec_order
     _exec_order = {r.get("uuid"): i+1 for i, r in enumerate(results)}
 
@@ -260,7 +290,7 @@ def generate_report(results_dir="allure-results", output="allure-report/report.h
     starts = [r["start"] for r in results if r.get("start")]
     stops = [r["stop"] for r in results if r.get("stop")]
     durs = [r.get("stop",0)-r.get("start",0) for r in results if r.get("start") and r.get("stop")]
-    D["widgets/summary.json"] = json.dumps({"reportName":"LiteReport","testRuns":[],
+    D["widgets/summary.json"] = json.dumps({"reportName":"Zb-Report","testRuns":[],
         "statistic":stat(results),"time":{"start":min(starts) if starts else 0,"stop":max(stops) if stops else 0,
         "duration":(max(stops)-min(starts)) if starts and stops else 0,
         "minDuration":min(durs) if durs else 0,"maxDuration":max(durs) if durs else 0,"sumDuration":sum(durs)}},ensure_ascii=False)
@@ -378,29 +408,27 @@ def generate_report(results_dir="allure-results", output="allure-report/report.h
 
     print(f"  生成 {len(D)} 个数据文件")
 
-    dj = json.dumps(D, ensure_ascii=False)
+    dj = json.dumps(D, ensure_ascii=False, sort_keys=True)
     raw_size = len(dj.encode("utf-8"))
-    compressed = gzip.compress(dj.encode("utf-8"), compresslevel=9)
+    compressed = compress_deterministically(dj.encode("utf-8"))
     b64 = base64.b64encode(compressed).decode("ascii")
     print(f"  压缩: {raw_size/1024/1024:.2f}MB -> {len(compressed)/1024/1024:.2f}MB ({len(compressed)/raw_size*100:.1f}%)")
 
     html = _build_html(b64)
 
-    os.makedirs(os.path.dirname(output) or ".", exist_ok=True)
-    with open(output, "w", encoding="utf-8") as f:
-        f.write(html)
+    was_written = write_text_if_changed(output, html)
 
     sz = os.path.getsize(output) / 1024 / 1024
     p = sum(1 for r in results if r.get("status")=="passed")
     fl = sum(1 for r in results if r.get("status") in ("failed","broken"))
     s = sum(1 for r in results if r.get("status")=="skipped")
-    print(f"报告已生成: {output} ({sz:.1f}MB)")
+    print(f"报告{'已生成' if was_written else '内容未变化'}: {output} ({sz:.1f}MB)")
     print(f"结果: {p} passed / {fl} failed / {s} skipped (共 {len(results)} 个)")
     return output
 
 
 # ---------------------------------------------------------------------------
-#  LiteReport 轻量 HTML 模板
+#  Zb-Report 轻量 HTML 模板
 # ---------------------------------------------------------------------------
 
 _CSS = r"""
@@ -637,7 +665,7 @@ function renderNav(){
     a.innerHTML=(navIcons[item.t]||'')+item.l;
     a.onclick=function(){curTab=item.t;render()};nav.appendChild(a);
   });
-  var footer=E('div','side-nav-footer','LiteReport v1.0');
+  var footer=E('div','side-nav-footer','Zb-Report v1.0');
   nav.appendChild(footer);
   nc.appendChild(nav);
 }
@@ -754,7 +782,7 @@ function renderOverview(){
   var ct=$('#content');ct.innerHTML='';
   var st=summary.statistic||{},total=st.total||0,passed=st.passed||0,failed=st.failed||0,broken=st.broken||0;
   var ov=E('div','overview');
-  ov.appendChild(E('div','ov-title',esc(summary.reportName||'LiteReport')));
+  ov.appendChild(E('div','ov-title',esc(summary.reportName||'Zb-Report')));
   var sub=total+' \u4E2A\u7528\u4F8B';if(summary.time&&summary.time.duration)sub+=' \u00B7 '+fmtDur(summary.time.duration);
   ov.appendChild(E('div','ov-sub',sub));
   var grid=E('div','widgets-grid'),col1=E('div','widgets-col'),col2=E('div','widgets-col');
@@ -801,14 +829,14 @@ def _build_html(compressed_b64):
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<title>LiteReport</title>
+<title>Zb-Report</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>\U0001f4ca</text></svg>">
 <style>{css}</style>
 </head>
 <body>
 <div class="header">
   <span class="brand">
-    <span class="brand-name">LiteReport</span>
+    <span class="brand-name">Zb-Report</span>
     <span class="brand-dot">\u00B7</span>
     <span class="brand-project"></span>
   </span>

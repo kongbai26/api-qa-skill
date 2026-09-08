@@ -40,7 +40,7 @@ if [ ! -d "allure-results" ] || [ -z "$(ls -A allure-results 2>/dev/null)" ]; th
 fi
 
 if command -v allure &>/dev/null; then
-    allure generate allure-results -o allure-report --clean
+    allure generate allure-results -o allure-report --clean && allure serve allure-results
     echo "报告已生成: allure-report/index.html"
 else
     "$PYTHON" utils/report_generator.py

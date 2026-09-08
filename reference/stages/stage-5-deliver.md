@@ -56,7 +56,7 @@ report_build(allure_results_dir="<PROJECT_DIR>/allure-results", output_path="<PR
 ```
 report_build(allure_results_dir="<PROJECT_DIR>/allure-results", output_path="<PROJECT_DIR>/allure-report/report.html", session_goal="API测试报告")
 ```
-若无该工具，执行 LiteReport 生成命令：
+若无该工具，执行 Python 报告生成器（Zb-Report）生成命令：
 ```
 shell_exec(command="cd \"<PROJECT_DIR>\" && <PYTHON> utils/report_generator.py --input allure-results --output allure-report/report.html")
 ```
