@@ -1,6 +1,7 @@
 ---
 name: api-qa-skill
 description: API 自动化测试：pytest+Allure 框架，5 阶段完整工作流 + 快速路径（≤5 接口），生成专业测试报告
+tools: curl, web_fetch, web_search, read_file, save_file, edit_file, list_files, shell_exec
 ---
 
 # API 自动化测试 Skill
@@ -67,12 +68,12 @@ description: API 自动化测试：pytest+Allure 框架，5 阶段完整工作�
   - 用户已提供目录（或在回复中给出了路径）→ 确定为 `<PROJECT_DIR>`，继续执行。
   - 用户仅回复了路径选择（如只说了“快速路径”未提保存目录）→ 顺水推舟自然追问一次：“收到，请问测试工程保存在哪个目录？（例如：~/Desktop/my-api-tests）”，收到明确回复后确定 `<PROJECT_DIR>`。
 - **目录确认后进入执行**：
-  - 快速路径 → 读取 `reference/stages/stage-quick-setup.md`
+  - 快速路径 → 读取 `reference/stages/stage-quick-setup.md` + `reference/implementation.md`
   - 完整流程 → 读取 `reference/stages/stage-full-setup.md`
 
 **⚠️ 路径锁定**：用户确认后，路径锁定，全程不可更改。即使后续用户说"只测一个接口"、"先测一个试试"等缩减范围的话，也必须按原确认的路径继续执行，不得切换到另一条路径。完整流程就是完整流程，快速路径就是快速路径。
 
-pytest + Allure 框架。**完整流程数量目标：每个接口平均 15-20 个用例，20 个接口至少 300 个。快速路径每接口 3-5 条。写完 `pytest --co -q` 数一下，不够就补。**
+pytest + Allure 框架。**无论是完整流程还是快速路径，所有 HTTP 请求必须通过 allure_request/AuthSession 发起，所有用例必须在 tests/ 目录下且带 @allure.title，必须生成 Allure/HTML 测试报告，严禁退化为裸写 requests 或普通 Markdown 报告（如 TEST_REPORT.md）。完整流程数量目标：每个接口平均 15-20 个用例，20 个接口至少 300 个。快速路径每接口 3-5 条。写完 `pytest --co -q` 数一下，不够就补。**
 
 ## 红线
 
@@ -90,9 +91,9 @@ pytest + Allure 框架。**完整流程数量目标：每个接口平均 15-20 �
 11. 禁止偷懒 — 完整流程 GET ≥8 条，POST ≥15 条；快速路径每接口 3-5 条，不足说明理由
 12. **禁止只说不做** — 每个阶段必须调用工具执行，不能只输出文本或自我分析来代替实际执行。所有阶段全部完成后才能停止调用工具
 13. **禁止循环执行相同命令** — 如果连续 2 次执行相同命令得到相同结果，必须停止并检查是否需要换方法或结束任务
-14. **禁止自动打开报告** — 生成报告时只生成静态文件（`allure generate` 或 `report_generator.py`），禁止执行 `allure serve`、`allure open`、`open allure-report/` 等任何会启动服务或打开浏览器的命令。生成后只需检查文件大小确认成功，报告由用户通过 `./run.sh` 手动查看
+14. **禁止自动打开报告与自制 Markdown 报告** — 生成报告时必须生成静态 HTML 报告（`allure generate` 或 `report_generator.py`），严禁以自制 TEST_REPORT.md 等 Markdown 文件代替正式测试报告！禁止执行 `allure serve`、`allure open`、`open allure-report/` 等任何会启动服务或打开浏览器的命令。生成后只需检查文件大小确认成功，报告由用户通过 `./run.sh` 手动查看
 15. **禁止自动执行 run.sh/run.bat** — 不要执行 `./run.sh` 或 `./run.bat` 脚本，该脚本由用户手动执行。agent 应直接执行 pytest 以及对应的报告生成命令（`allure generate` 或 `python utils/report_generator.py`）
-16. **禁止在项目目录外创建任何文件或文件夹** — 所有产出必须全部创建在 `<PROJECT_DIR>/` 内部
+16. **禁止在项目目录外创建任何文件或文件夹** — 所有产出必须全部创建在 `<PROJECT_DIR>/` 内部，测试用例代码必须保存在 `<PROJECT_DIR>/tests/` 目录下，严禁散落在项目根目录
 17. **禁止直接调用 requests.get/post/put/patch/delete** — 所有 HTTP 请求必须通过 `allure_request()` 或 `AuthSession` 实例方法（`auth_session.get()`、`auth_session.post()` 等）发起
 18. **快速路径仅用于简单任务** — 接口数 ≤ 5 且无复杂业务逻辑（支付/权限/工作流）时可用。接口数 > 5 或涉及复杂逻辑时，必须走完整 5 阶段
 19. **路径确认后不可更改** — 路由阶段用户确认了完整流程/快速路径后，全程锁定不可切换。不得因用户中途说"只测一个接口"、"先试一个"等缩减范围的话而自动切换路径

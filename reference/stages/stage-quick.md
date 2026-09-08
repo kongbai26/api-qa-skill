@@ -1,6 +1,6 @@
 # 快速路径：阶段 3-5 合并
 
-> **⛔ 本阶段需要额外读取：reference/implementation.md**
+> **⛔ 本阶段需要额外读取：reference/implementation.md + reference/run-scripts.md +（_templates/report_generator.py 仅 ALLURE=无 时）**
 >
 > ⚠️ 仅用于接口数 ≤ 5 的简单任务。复杂逻辑（支付/权限/工作流）必须走完整 5 阶段。
 
@@ -11,12 +11,12 @@
 ## 步骤清单
 
 ```
-⬜ 1. 搭框架（conftest.py + request_helper.py + 基础配置）
+⬜ 1. 搭框架（conftest.py + request_helper.py + 基础配置 + tests/ 目录）
 ⬜ 2. 安装依赖
 ⬜ 3. curl 调每个接口，记录实际返回
-⬜ 4. 写测试用例（每接口 3-5 条核心用例，总数 ≥ 接口数 × 3）
+⬜ 4. 写测试用例（保存至 tests/ 目录，每接口 3-5 条核心用例，总数 ≥ 接口数 × 3）
 ⬜ 5. 跑 pytest + 修断言（循环直到通过，最多 3 轮）
-⬜ 6. 生成报告
+⬜ 6. 生成报告（静态 Allure / HTML 报告，严禁 Markdown 代替）
 ⬜ 7. 生成运行脚本（run.sh / run.bat）
 ⬜ 8. 统一更新 MEMORY.md
 ```
@@ -28,13 +28,16 @@
 ## ① 搭框架
 
 在 `<PROJECT_DIR>` 目录下用 `save_file` 创建以下文件（完整代码见 `reference/implementation.md`，用 `read_file` 读取后照抄）：
-- `<PROJECT_DIR>/conftest.py`
-- `<PROJECT_DIR>/utils/request_helper.py`
+- `<PROJECT_DIR>/conftest.py` — 核心 fixture 与 Allure 挂钩（完整代码见 reference/implementation.md）
+- `<PROJECT_DIR>/utils/request_helper.py` — allure_request 与 AuthSession 实现（完整代码见 reference/implementation.md）
 - `<PROJECT_DIR>/utils/__init__.py`（空文件）
-- `<PROJECT_DIR>/pytest.ini`
-- `<PROJECT_DIR>/requirements.txt`
+- `<PROJECT_DIR>/tests/__init__.py`（空文件，用于初始化 `tests/` 用例目录，测试用例必须放入 `tests/`）
+- `<PROJECT_DIR>/pytest.ini` — 必须包含 `addopts = -v --tb=short --alluredir=allure-results`
+- `<PROJECT_DIR>/requirements.txt` — 必须包含 pytest、allure-pytest、requests、python-dotenv
 - `<PROJECT_DIR>/.env`（填入 API 基地址和 token）
 - `<PROJECT_DIR>/.gitignore`
+
+**⚠️ 严禁直接使用 requests 裸写测试**：必须遵循 pytest + Allure 架构规范，所有网络调用封装在 `allure_request` / `AuthSession` 中。
 
 **复制报告生成工具（仅当 ALLURE=无 时）**：
 - 如果 `ALLURE=无`：用 `read_file` 读取 `<skill_dir>/_templates/report_generator.py`，保存为 `<PROJECT_DIR>/utils/report_generator.py`
@@ -78,6 +81,13 @@ shell_exec(command="curl -s -X POST '<登录接口URL>' -H 'Content-Type: applic
 ---
 
 ## ④ 写测试用例
+
+### 文件命名与存放路径（强制红线）
+
+- **保存路径**：用 `save_file` 保存为 `<PROJECT_DIR>/tests/test_<模块名>.py`（例如：`<PROJECT_DIR>/tests/test_posts.py`）
+- **⚠️ 严禁直接保存在根目录（如 `<PROJECT_DIR>/test_posts.py`）**，所有测试用例必须位于 `<PROJECT_DIR>/tests/` 目录！
+- **⚠️ 严禁使用原生 requests 裸调接口**，所有请求必须通过 `auth_session` 或 `allure_request` 发起！
+- **⚠️ 每条用例必须包含 `@allure.title("...")`** 与 `expected="..."` 参数！
 
 ### 用例数量目标
 
@@ -145,6 +155,8 @@ class TestUsers:
 shell_exec(command="cd \"<PROJECT_DIR>\" && <PYTHON> -m pytest tests/ -v --tb=short --alluredir=allure-results")
 ```
 
+⚠️ 必须针对 `tests/` 目录执行，且必须附带 `--alluredir=allure-results` 参数以生成 Allure 结果数据！
+
 **修复规则**：
 - 断言不匹配真实返回 → 改断言
 - API 真有 bug → 不改代码，记录到差异列表
@@ -157,7 +169,9 @@ shell_exec(command="cd \"<PROJECT_DIR>\" && <PYTHON> -m pytest tests/ -v --tb=sh
 
 ## ⑥ 生成报告
 
-⚠️ **禁止用 `allure serve` 或 `allure open`。**
+⚠️ **红线警示**：
+1. **禁止用 `allure serve` 或 `allure open`。**
+2. **必须生成正式 HTML 测试报告，严禁自制 `TEST_REPORT.md` 等 Markdown 文件代替报告！** 只要未生成标准 HTML 报告，即视为任务未完成。
 
 **根据阶段一检测的 ALLURE 变量决定报告方式（二选一分支）**：
 
@@ -165,13 +179,18 @@ shell_exec(command="cd \"<PROJECT_DIR>\" && <PYTHON> -m pytest tests/ -v --tb=sh
 ```
 shell_exec(command="cd \"<PROJECT_DIR>\" && allure generate allure-results -o allure-report --clean")
 ```
-无需生成单文件报告，验收只看 `allure-report/index.html`。
+验收标准：`allure-report/index.html` 存在且非空。
 
 **如果没有 allure（ALLURE=无）**：
 ```
 shell_exec(command="cd \"<PROJECT_DIR>\" && <PYTHON> utils/report_generator.py --input allure-results --output allure-report/report.html")
 ```
-验收只看 `allure-report/report.html`。
+验收标准：`allure-report/report.html` 存在且非空。
+
+**验证报告文件已生成**：
+```
+shell_exec(command="cd \"<PROJECT_DIR>\" && <PYTHON> -c \"import os; p='allure-report/index.html' if '<ALLURE>'=='有' else 'allure-report/report.html'; print('REPORT_OK' if os.path.exists(p) and os.path.getsize(p)>0 else 'REPORT_FAIL')\"")
+```
 
 ---
 
@@ -186,6 +205,7 @@ shell_exec(command="cd \"<PROJECT_DIR>\" && <PYTHON> -c \"import os; print('FOUN
 - **不存在** → 用 `read_file` 读取 `<skill_dir>/reference/run-scripts.md` 获取脚本模板，用 `save_file` 保存：
   - OS_TYPE 是 Darwin 或 Linux → 保存为 `<PROJECT_DIR>/run.sh`，并执行 `chmod +x "<PROJECT_DIR>/run.sh"`
   - OS_TYPE 是 Windows → 保存为 `<PROJECT_DIR>/run.bat`
+  - ⚠️ 脚本文件名必须且只能是 `run.sh` 或 `run.bat`，严禁命名为 `run_tests.sh`！
 
 ---
 

@@ -82,6 +82,7 @@ shell_exec(command="<PYTHON> -c \"import platform,shutil,sys; print('OS:',platfo
 ```
 read_file(file_path="<skill_dir>/reference/stages/stage-quick.md")
 read_file(file_path="<skill_dir>/reference/implementation.md")
+read_file(file_path="<skill_dir>/reference/run-scripts.md")
 ```
 
 ## 产出

@@ -49,6 +49,7 @@ shell_exec(command="cd \"<PROJECT_DIR>\" && <PYTHON> -m pytest tests/ -v --tb=sh
 ## ② 生成报告
 
 ⚠️ **禁止用 `allure serve` 或 `allure open`，禁止 `open` 任何文件。**
+⚠️ **必须生成正式 HTML 测试报告，严禁自制 `TEST_REPORT.md` 等 Markdown 文件代替报告！** 只要未生成标准 HTML 报告，即视为未完成。
 
 **根据阶段一检测的 ALLURE 变量决定报告方式（二选一分支）**：
 
