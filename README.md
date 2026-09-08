@@ -66,7 +66,7 @@ api-qa-skill/
 `api-qa-skill` is engineered as a **universal, model-agnostic Agent engineering specification**. Whether you use terminal coding agents, AI-powered IDEs, autonomous extensions, or web-based LLMs, you can seamlessly integrate it into your workflow.
 
 ### 1. Quick Clone
-Clone this repository into your workspace or local environment:
+Clone this repository into your local environment:
 ```bash
 git clone https://github.com/kongbai26/api-qa-skill.git
 ```
@@ -77,7 +77,7 @@ Paste the following prompt into any AI Agent conversation, replacing the `[...]`
 ```text
 Please read and strictly follow the engineering protocol in `./api-qa-skill/SKILL.md` to design and implement a production-ready API automated test suite:
 
-- Target Directory: [Directory path to save the test project, e.g., ./api-test-suite or ~/Desktop/my-api-tests; or write "None" to be prompted]
+- Target Directory: [Directory name or path to save the test project, e.g., api-test-suite; or write "None" to be prompted]
 - API Base URL: [Your API Base URL, e.g., https://api.example.com]
 - API Specification: [Paste your Swagger JSON / OpenAPI YAML / Markdown / endpoint list]
 - Authentication: [Specify: Bearer Token / API Key / Login credentials; or write "None" if unauthenticated]

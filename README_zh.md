@@ -58,7 +58,7 @@ api-qa-skill/
 本项目设计为**高度通用、模型无关（Model-Agnostic）的 Agent 规范资产**。无论你使用的是终端命令行 Agent、AI 编程 IDE、自主编程扩展，还是普通网页端大模型，都可以无缝运行。
 
 ### 1. 快速获取
-将仓库克隆到你的工作区或本地目录：
+将仓库克隆到本地：
 ```bash
 git clone https://github.com/kongbai26/api-qa-skill.git
 ```
@@ -69,7 +69,7 @@ git clone https://github.com/kongbai26/api-qa-skill.git
 ```text
 请阅读并严格遵循 `./api-qa-skill/SKILL.md` 的工程规约，为以下接口设计并生成一套生产级自动化测试工程：
 
-- 测试工程保存目录：[你想保存测试代码的目录路径，如 ./api-test-suite 或 ~/Desktop/my-api-tests；没想好写“无”后续会询问]
+- 测试工程保存目录：[你想保存测试代码的目录路径或名称，如 api-test-suite；没想好写“无”后续会询问]
 - API 基地址：[你的 API 服务基准地址，例如 https://api.example.com]
 - 接口定义文档：[粘贴你的 Swagger / OpenAPI / Markdown / 接口清单]
 - 认证鉴权信息：[例如 Bearer Token / API Key / 登录账号密码；没有或无需认证直接写“无”]
@@ -83,7 +83,7 @@ git clone https://github.com/kongbai26/api-qa-skill.git
 | :--- | :--- | :--- |
 | **Agent CLI / 终端助手** | **Claude Code**<br>**Antigravity (AGY)**<br>**Aider / Goose / OpenCode** | 克隆至项目根目录或全局技能目录：<br>• **Antigravity**: `git clone https://github.com/kongbai26/api-qa-skill.git ~/.gemini/antigravity-cli/skills/api-qa-skill`<br>• **Claude Code**: 在 `CLAUDE.md` 中增加 `参考 ./api-qa-skill/SKILL.md 执行接口自动化测试`<br>• **Aider / Goose**: 启动时传入参数 `--message "阅读 ./api-qa-skill/SKILL.md 并执行..."` |
 | **AI 原生 IDE / 编辑器** | **Cursor**<br>**Windsurf**<br>**GitHub Copilot (VS Code)** | • **Cursor**: 在 `.cursor/rules/api-qa.mdc` 或 Composer 中通过 `@api-qa-skill/SKILL.md` 引用<br>• **Windsurf**: 在 `.windsurfrules` 中引入规约文件<br>• **Copilot**: 在对话中输入 `@workspace` 并引用 `./api-qa-skill/SKILL.md` |
-| **自主编程插件** | **Cline / Roo Code**<br>**Continue.dev** | 放入工作区。在 Custom Instructions / 规则中配置：<br>`"当需要生成或维护 API 自动化测试时，必须严格阅读并执行 ./api-qa-skill/SKILL.md"` |
+| **自主编程插件** | **Cline / Roo Code**<br>**Continue.dev** | 放入项目目录。在 Custom Instructions / 规则中配置：<br>`"当需要生成或维护 API 自动化测试时，必须严格阅读并执行 ./api-qa-skill/SKILL.md"` |
 | **网页端 / API 大模型** | **ChatGPT / Claude.ai**<br>**DeepSeek / Gemini / Kimi** | 直接将 `SKILL.md` 作为文件附件上传或填入系统提示词。提供接口文档，大模型即可作为高级 QA 架构师输出全套用例设计与测试脚本。 |
 | **独立工程脚手架** | **QA 工程师 / CI/CD 流水线** | 无需任何 AI Agent。直接复用 `_templates/report_generator.py` 与 `reference/implementation.md` 作为现代 pytest + Allure 自动化测试项目的标准工程骨架。 |
 
