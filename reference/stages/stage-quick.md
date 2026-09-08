@@ -27,14 +27,18 @@
 
 ## ① 搭框架
 
-用 `save_file` 创建以下文件（**完整代码见 reference/implementation.md**，用 read_file 读取后照抄）：
-- `conftest.py`
-- `utils/request_helper.py`
-- `utils/__init__.py`（空文件）
-- `pytest.ini`
-- `requirements.txt`
-- `.env`（填入 API 基地址和 token）
-- `.gitignore`
+在 `<PROJECT_DIR>` 目录下用 `save_file` 创建以下文件（完整代码见 `reference/implementation.md`，用 `read_file` 读取后照抄）：
+- `<PROJECT_DIR>/conftest.py`
+- `<PROJECT_DIR>/utils/request_helper.py`
+- `<PROJECT_DIR>/utils/__init__.py`（空文件）
+- `<PROJECT_DIR>/pytest.ini`
+- `<PROJECT_DIR>/requirements.txt`
+- `<PROJECT_DIR>/.env`（填入 API 基地址和 token）
+- `<PROJECT_DIR>/.gitignore`
+
+**复制报告生成工具（仅当 ALLURE=无 时）**：
+- 如果 `ALLURE=无`：用 `read_file` 读取 `<skill_dir>/_templates/report_generator.py`，保存为 `<PROJECT_DIR>/utils/report_generator.py`
+- 如果 `ALLURE=有`：跳过
 
 **pytest.ini 额外注册 marker**（在现有 markers 中追加）：
 ```ini
@@ -179,9 +183,9 @@ shell_exec(command="cd \"<PROJECT_DIR>\" && <PYTHON> -c \"import os; print('FOUN
 ```
 
 - **已存在** → 跳过
-- **不存在** → 从 `reference/run-scripts.md` 获取内容，用 `save_file` 保存：
-  - OS_TYPE 是 Darwin 或 Linux → 保存为 run.sh，`chmod +x`
-  - OS_TYPE 是 Windows → 保存为 run.bat
+- **不存在** → 用 `read_file` 读取 `<skill_dir>/reference/run-scripts.md` 获取脚本模板，用 `save_file` 保存：
+  - OS_TYPE 是 Darwin 或 Linux → 保存为 `<PROJECT_DIR>/run.sh`，并执行 `chmod +x "<PROJECT_DIR>/run.sh"`
+  - OS_TYPE 是 Windows → 保存为 `<PROJECT_DIR>/run.bat`
 
 ---
 
