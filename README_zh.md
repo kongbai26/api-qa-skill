@@ -69,7 +69,7 @@ git clone https://github.com/kongbai26/api-qa-skill.git
 ```text
 请阅读并严格遵循 `./api-qa-skill/SKILL.md` 的工程规约，为以下接口设计并生成一套生产级自动化测试工程：
 
-- 测试工程保存目录：[你想保存测试代码的目录路径或名称，如 api-test-suite；没想好写“无”后续会询问]
+- 测试工程保存目录：[你想保存测试代码的目录路径，如 ~/Desktop/my-api-tests；没想好写“无”后续会询问]
 - API 基地址：[你的 API 服务基准地址，例如 https://api.example.com]
 - 接口定义文档：[粘贴你的 Swagger / OpenAPI / Markdown / 接口清单]
 - 认证鉴权信息：[例如 Bearer Token / API Key / 登录账号密码；没有或无需认证直接写“无”]
