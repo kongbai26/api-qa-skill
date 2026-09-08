@@ -1,7 +1,7 @@
 ---
 name: api-qa-skill
 description: API 自动化测试：pytest+Allure 框架，5 阶段完整工作流 + 快速路径（≤5 接口），生成专业测试报告
-tools: curl, web_fetch, web_search, read_file, save_file, edit_file, list_files, shell_exec
+tools: curl, web_fetch, web_search, get_datetime, format_datetime, read_file, save_file, edit_file, list_files, grep_search, glob_search, shell_exec, memory_recall, memory_save, report_build, Skill
 ---
 
 # API 自动化测试 Skill
@@ -17,7 +17,7 @@ tools: curl, web_fetch, web_search, read_file, save_file, edit_file, list_files,
 > ⚠️ 所有文件都在本 Skill 目录下。用 `read_file` 读取时，路径是本 Skill 的目录路径 + 上述相对路径。
 >
 > **文件读取失败处理**：
-> - 如果 `read_file` 失败 → 立即用 `shell_exec(command="cat '<skill_dir>/文件路径'")` 重试
+> - 如果 `read_file` 报错 → 先检查参数必须为 `path`（非 file_path）、再用 `list_files` 核对路径；若仍失败立即用 `shell_exec(command="cat '<skill_dir>/文件路径'")` 兜底读取
 > - 如果两种方法都失败 → 告知用户模板文件无法读取，询问是否手动提供
 
 ## ⚡ 第一步：路由（读完本文件后立即执行，禁止跳过）

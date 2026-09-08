@@ -173,23 +173,31 @@ shell_exec(command="cd \"<PROJECT_DIR>\" && <PYTHON> -m pytest tests/ -v --tb=sh
 1. **禁止用 `allure serve` 或 `allure open`。**
 2. **必须生成正式 HTML 测试报告，严禁自制 `TEST_REPORT.md` 等 Markdown 文件代替报告！** 只要未生成标准 HTML 报告，即视为任务未完成。
 
-**根据阶段一检测的 ALLURE 变量决定报告方式（二选一分支）**：
+**报告生成方式**：
 
 **如果有 allure（ALLURE=有）**：
+1. 生成官方多文件静态报告：
 ```
 shell_exec(command="cd \"<PROJECT_DIR>\" && allure generate allure-results -o allure-report --clean")
 ```
-验收标准：`allure-report/index.html` 存在且非空。
+2. 若系统具备 `report_build` 工具，立即调用以同步生成单文件交互大盘：
+```
+report_build(allure_results_dir="<PROJECT_DIR>/allure-results", output_path="<PROJECT_DIR>/allure-report/report.html", session_goal="API测试报告")
+```
 
 **如果没有 allure（ALLURE=无）**：
+若系统具备 `report_build` 工具，优先调用：
+```
+report_build(allure_results_dir="<PROJECT_DIR>/allure-results", output_path="<PROJECT_DIR>/allure-report/report.html", session_goal="API测试报告")
+```
+若无该工具，执行 Python 报告生成器脚本：
 ```
 shell_exec(command="cd \"<PROJECT_DIR>\" && <PYTHON> utils/report_generator.py --input allure-results --output allure-report/report.html")
 ```
-验收标准：`allure-report/report.html` 存在且非空。
 
 **验证报告文件已生成**：
 ```
-shell_exec(command="cd \"<PROJECT_DIR>\" && <PYTHON> -c \"import os; p='allure-report/index.html' if '<ALLURE>'=='有' else 'allure-report/report.html'; print('REPORT_OK' if os.path.exists(p) and os.path.getsize(p)>0 else 'REPORT_FAIL')\"")
+shell_exec(command="cd \"<PROJECT_DIR>\" && <PYTHON> -c \"import os; ok=os.path.exists('allure-report/index.html') or os.path.exists('allure-report/report.html'); print('REPORT_OK' if ok else 'REPORT_FAIL')\"")
 ```
 
 ---

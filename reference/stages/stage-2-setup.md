@@ -76,7 +76,7 @@ shell_exec(command="cd \"<PROJECT_DIR>\" && <PYTHON> -c \"import os; files=['con
 
 方法A - 使用 `read_file`（优先）：
 ```
-read_file(file_path="<skill_dir>/_templates/report_generator.py")
+read_file(path="<skill_dir>/_templates/report_generator.py")
 ```
 
 方法B - 如果方法A失败，使用 `shell_exec cat`：
@@ -90,7 +90,7 @@ shell_exec(command="cat '<skill_dir>/_templates/report_generator.py'")
 
 **步骤2：保存到项目目录**
 ```
-save_file(file_path="<PROJECT_DIR>/utils/report_generator.py", content="<读取到的内容>")
+save_file(path="<PROJECT_DIR>/utils/report_generator.py", content="<读取到的内容>")
 ```
 
 **步骤3：验证文件存在**
@@ -129,7 +129,7 @@ shell_exec(command="ls -la '<PROJECT_DIR>/run.bat' 2>/dev/null && echo 'run.bat 
 
 方法A - 使用 `read_file`（优先）：
 ```
-read_file(file_path="<skill_dir>/reference/run-scripts.md")
+read_file(path="<skill_dir>/reference/run-scripts.md")
 ```
 
 方法B - 如果方法A失败，使用 `shell_exec cat`：

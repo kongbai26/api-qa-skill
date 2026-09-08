@@ -171,6 +171,10 @@ class AuthSession:
 
 完整代码在 `_templates/report_generator.py`。**仅当 ALLURE=无 时需要**，用 `read_file` 读取后用 `save_file` 保存到 `<PROJECT_DIR>/utils/report_generator.py`。
 
+## allure_bundle.py
+
+完整代码在 `_templates/allure_bundle.py`，用 `read_file` 读取后用 `save_file` 保存到 `<PROJECT_DIR>/utils/allure_bundle.py`（用于将 allure 官方报告打包为免跨域的单文件 HTML 报告）。
+
 ## pytest.ini
 
 ```ini

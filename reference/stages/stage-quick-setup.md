@@ -80,9 +80,9 @@ shell_exec(command="<PYTHON> -c \"import platform,shutil,sys; print('OS:',platfo
 前置信息确认完毕后，读取以下文件开始执行测试工程生成：
 
 ```
-read_file(file_path="<skill_dir>/reference/stages/stage-quick.md")
-read_file(file_path="<skill_dir>/reference/implementation.md")
-read_file(file_path="<skill_dir>/reference/run-scripts.md")
+read_file(path="<skill_dir>/reference/stages/stage-quick.md")
+read_file(path="<skill_dir>/reference/implementation.md")
+read_file(path="<skill_dir>/reference/run-scripts.md")
 ```
 
 ## 产出

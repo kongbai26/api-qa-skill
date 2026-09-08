@@ -51,15 +51,24 @@ shell_exec(command="cd \"<PROJECT_DIR>\" && <PYTHON> -m pytest tests/ -v --tb=sh
 ⚠️ **禁止用 `allure serve` 或 `allure open`，禁止 `open` 任何文件。**
 ⚠️ **必须生成正式 HTML 测试报告，严禁自制 `TEST_REPORT.md` 等 Markdown 文件代替报告！** 只要未生成标准 HTML 报告，即视为未完成。
 
-**根据阶段一检测的 ALLURE 变量决定报告方式（二选一分支）**：
+**根据环境与工具链生成报告**：
 
-**如果有 allure（ALLURE=有）** → 生成 Allure 静态多文件报告：
+**如果有 allure（ALLURE=有）**：
+1. 生成官方多文件静态报告：
 ```
 shell_exec(command="cd \"<PROJECT_DIR>\" && allure generate allure-results -o allure-report --clean")
 ```
-`--clean` 参数会自动覆盖旧报告，无需手动删除。无需生成单文件报告，后续验收只看 `allure-report/index.html`。
+2. 若系统具备 `report_build` 工具，立即调用以同步生成单文件大盘：
+```
+report_build(allure_results_dir="<PROJECT_DIR>/allure-results", output_path="<PROJECT_DIR>/allure-report/report.html", session_goal="API测试报告")
+```
 
-**如果没有 allure（ALLURE=无）** → 使用 LiteReport 生成单页面静态报告：
+**如果没有 allure（ALLURE=无）**：
+若系统具备 `report_build` 工具，优先调用：
+```
+report_build(allure_results_dir="<PROJECT_DIR>/allure-results", output_path="<PROJECT_DIR>/allure-report/report.html", session_goal="API测试报告")
+```
+若无该工具，执行 Python 报告生成器脚本：
 ```
 shell_exec(command="cd \"<PROJECT_DIR>\" && <PYTHON> utils/report_generator.py --input allure-results --output allure-report/report.html")
 ```

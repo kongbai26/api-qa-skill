@@ -41,12 +41,22 @@ shell_exec(command="cd \"<PROJECT_DIR>\" && <PYTHON> -m pytest tests/ -v --tb=sh
 
 pytest 跑完后，先告诉用户测试结果摘要（通过/失败/跳过数量），然后生成报告：
 
-**ALLURE=有** → 执行 Allure 官方生成命令：
+**ALLURE=有**：
+1. 执行 Allure 官方生成命令：
 ```
 shell_exec(command="cd \"<PROJECT_DIR>\" && allure generate allure-results -o allure-report --clean")
 ```
+2. 若系统具备 `report_build` 工具，立即调用以同步生成单文件大盘：
+```
+report_build(allure_results_dir="<PROJECT_DIR>/allure-results", output_path="<PROJECT_DIR>/allure-report/report.html", session_goal="API测试报告")
+```
 
-**ALLURE=无** → 执行 LiteReport 生成命令：
+**ALLURE=无**：
+若系统具备 `report_build` 工具，优先调用：
+```
+report_build(allure_results_dir="<PROJECT_DIR>/allure-results", output_path="<PROJECT_DIR>/allure-report/report.html", session_goal="API测试报告")
+```
+若无该工具，执行 LiteReport 生成命令：
 ```
 shell_exec(command="cd \"<PROJECT_DIR>\" && <PYTHON> utils/report_generator.py --input allure-results --output allure-report/report.html")
 ```
@@ -94,7 +104,7 @@ shell_exec(command="cd \"<PROJECT_DIR>\" && <PYTHON> -c \"import os; print('FOUN
 
 如果缺失，直接生成：
 ```
-read_file(file_path="<skill_dir>/reference/run-scripts.md")
+read_file(path="<skill_dir>/reference/run-scripts.md")
 ```
 然后用 `save_file` 保存到项目目录：
 - OS_TYPE 是 Darwin 或 Linux → 保存为 `<PROJECT_DIR>/run.sh`，并执行 `shell_exec(command="chmod +x '<PROJECT_DIR>/run.sh'")`
