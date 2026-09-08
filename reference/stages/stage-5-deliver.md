@@ -37,6 +37,7 @@ shell_exec(command="cd \"<PROJECT_DIR>\" && <PYTHON> -m pytest tests/ -v --tb=sh
 ## ② 生成报告
 
 ⚠️ **禁止用 `allure serve` 或 `allure open`，禁止 `open` 任何文件。**
+⚠️ **必须生成正式 HTML 测试报告，严禁自制 `TEST_REPORT.md` 等 Markdown 文件代替报告！** 只要未生成标准 HTML 报告，即视为未完成。
 
 pytest 跑完后，先告诉用户测试结果摘要（通过/失败/跳过数量），然后生成报告：
 
@@ -80,7 +81,7 @@ shell_exec(command="cd \"<PROJECT_DIR>\" && <PYTHON> -c \"import os; sz=os.path.
 
 ## ④ 写 docs/test_cases.md
 
-格式见 reference/test-doc.md。
+用 `save_file` 保存为 `<PROJECT_DIR>/docs/test_cases.md`（格式见 reference/test-doc.md）。
 
 ---
 
@@ -96,8 +97,9 @@ shell_exec(command="cd \"<PROJECT_DIR>\" && <PYTHON> -c \"import os; print('FOUN
 read_file(file_path="<skill_dir>/reference/run-scripts.md")
 ```
 然后用 `save_file` 保存到项目目录：
-- OS_TYPE 是 Darwin 或 Linux → 保存为 run.sh，并执行 `shell_exec(command="chmod +x '<PROJECT_DIR>/run.sh'")`
-- OS_TYPE 是 Windows → 保存为 run.bat
+- OS_TYPE 是 Darwin 或 Linux → 保存为 `<PROJECT_DIR>/run.sh`，并执行 `shell_exec(command="chmod +x '<PROJECT_DIR>/run.sh'")`
+- OS_TYPE 是 Windows → 保存为 `<PROJECT_DIR>/run.bat`
+- ⚠️ 脚本文件必须且只能是 `run.sh` 或 `run.bat`，严禁命名为 `run_tests.sh`！
 
 ---
 

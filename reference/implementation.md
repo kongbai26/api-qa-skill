@@ -88,7 +88,7 @@ def allure_request(method, url, expected="", session=None, **kwargs):
     _request_counter += 1
     seq = _request_counter
 
-    headers = kwargs.pop("headers", {})
+    headers = kwargs.pop("headers", None) or {}
     auth_header = headers.get("Authorization", "")
     if auth_header and len(auth_header) > 25:
         display_auth = auth_header[:25] + "..."
@@ -216,6 +216,10 @@ python-dotenv>=1.0
 API_BASE_URL=https://api.example.com
 API_TOKEN=your_token_here
 ```
+
+## tests/__init__.py
+
+用 `save_file` 保存为 `<PROJECT_DIR>/tests/__init__.py`（空文件，用于初始化 `tests/` 用例包目录，所有自动化测试用例文件必须且只能存放在 `tests/` 目录下）。
 
 ## .gitignore
 

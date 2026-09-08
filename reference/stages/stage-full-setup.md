@@ -10,8 +10,8 @@
 
 ```
 ⬜ 1. 获取 API 文档，提取接口清单 + 认证方式
-⬜ 2. 确认项目位置（问用户，等回复）
-⬜ 3. 确认运行环境（问用户或自动检测，等回复）
+⬜ 2. 确认项目位置（必须获取用户明确路径，未提供则停下询问）
+⬜ 3. 确认运行环境（静默自动检测）
 ⬜ 4. 确认认证方式（已有则跳过，否则问用户）
 ⬜ 5. 汇报计划，等用户确认
 ```
@@ -96,7 +96,7 @@ shell_exec(command="<PYTHON> -c \"import platform,shutil,sys; print('OS:',platfo
 
 然后**停下来等用户确认**。
 
-**用户确认后** → 读取 `reference/stages/stage-2-setup.md` 进入阶段二。
+**用户确认后** → 读取 `reference/stages/stage-2-setup.md` + `reference/implementation.md` + `reference/run-scripts.md` 进入阶段二。
 
 **禁止**：
 - 禁止步骤①-④未完成时就显示步骤⑤

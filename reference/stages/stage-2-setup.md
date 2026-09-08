@@ -27,7 +27,7 @@ shell_exec(command="<PYTHON> -c \"import os; os.makedirs(r'<PROJECT_DIR>', exist
 
 然后执行项目状态检查：
 ```
-shell_exec(command="cd \"<PROJECT_DIR>\" && <PYTHON> -c \"import os; files=['conftest.py', 'utils/request_helper.py', 'utils/__init__.py', 'pytest.ini', 'requirements.txt', '.env', '.gitignore', 'MEMORY.md']; print('=== 项目状态检查 ==='); [print(f'✅ {f}' if os.path.exists(f) else f'❌ {f} 缺失') for f in files]; script_ok = os.path.exists('run.sh') or os.path.exists('run.bat'); print('✅ 运行脚本存在' if script_ok else '❌ 运行脚本缺失'); rep_ok = os.path.exists('utils/report_generator.py'); print('✅ utils/report_generator.py 存在' if rep_ok else ('⚪ utils/report_generator.py 未复制（ALLURE=有，无需复制）' if '<ALLURE>'=='有' else '❌ utils/report_generator.py 缺失'))\"")
+shell_exec(command="cd \"<PROJECT_DIR>\" && <PYTHON> -c \"import os; files=['conftest.py', 'utils/request_helper.py', 'utils/__init__.py', 'tests/__init__.py', 'pytest.ini', 'requirements.txt', '.env', '.gitignore', 'MEMORY.md']; print('=== 项目状态检查 ==='); [print(f'✅ {f}' if os.path.exists(f) else f'❌ {f} 缺失') for f in files]; script_ok = os.path.exists('run.sh') or os.path.exists('run.bat'); print('✅ 运行脚本存在' if script_ok else '❌ 运行脚本缺失'); rep_ok = os.path.exists('utils/report_generator.py'); print('✅ utils/report_generator.py 存在' if rep_ok else ('⚪ utils/report_generator.py 未复制（ALLURE=有，无需复制）' if '<ALLURE>'=='有' else '❌ utils/report_generator.py 缺失'))\"")
 ```
 
 **检查结果处理**：
@@ -45,10 +45,13 @@ shell_exec(command="cd \"<PROJECT_DIR>\" && <PYTHON> -c \"import os; files=['con
 - `conftest.py` — 完整代码在 reference/implementation.md 的 "## conftest.py 完整代码" 章节
 - `utils/request_helper.py` — 完整代码在 reference/implementation.md 的 "## request_helper.py 完整代码" 章节
 - `utils/__init__.py` — 空文件
-- `pytest.ini`
-- `requirements.txt`
+- `tests/__init__.py` — 空文件（必须创建以初始化 `tests/` 用例目录，所有测试用例必须放入 `tests/`）
+- `pytest.ini` — 必须包含 `addopts = -v --tb=short --alluredir=allure-results`
+- `requirements.txt` — 必须包含 pytest、allure-pytest、requests、python-dotenv
 - `.env`（填入 API 基地址和 token）
 - `.gitignore`
+
+**⚠️ 严禁直接使用 requests 裸写测试**：测试工程必须基于 pytest + Allure 架构规范，所有网络调用封装在 `allure_request` / `AuthSession` 中。
 
 **⚠️ 文件创建失败处理**：
 - 如果 save_file 失败，**最多重试 2 次**

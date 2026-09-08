@@ -28,6 +28,11 @@ def test_xxx(self, auth_session):
 
 参数化用 `{参数名}` 自动替换。
 
+## ⚠️ 编写红线
+1. **存放路径**：所有用例文件必须保存为 `<PROJECT_DIR>/tests/test_<模块名>.py`，严禁存放在项目根目录。
+2. **禁止直接调用 requests**：必须通过 `auth_session` 实例方法或 `allure_request` 发起请求，以注入 Allure 步骤与附件。
+3. **必须传递 expected 参数**：每次调用必须传 `expected="..."`，确保报告展示明确预期。
+
 ## 断言防御写法
 
 | 场景 | 错误 | 正确 |
