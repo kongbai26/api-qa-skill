@@ -77,7 +77,7 @@ Paste the following prompt into any AI Agent conversation, replacing the `[...]`
 ```text
 Please read and strictly follow the engineering protocol in `./api-qa-skill/SKILL.md` to design and implement a production-ready API automated test suite:
 
-- Target Project Directory: [Path to store generated tests, e.g., ./tests or ./api-test-suite; or write "None" for default]
+- Target Directory: [Directory path to save the test project, e.g., ./api-test-suite or ~/Desktop/my-api-tests; or write "None" to be prompted]
 - API Base URL: [Your API Base URL, e.g., https://api.example.com]
 - API Specification: [Paste your Swagger JSON / OpenAPI YAML / Markdown / endpoint list]
 - Authentication: [Specify: Bearer Token / API Key / Login credentials; or write "None" if unauthenticated]
