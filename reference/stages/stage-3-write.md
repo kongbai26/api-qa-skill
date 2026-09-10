@@ -2,6 +2,8 @@
 
 > **⛔ 本阶段需要额外读取：reference/test-design.md**
 
+> **MEMORY 文件边界**：本阶段所有 `MEMORY.md` 均指 `<PROJECT_DIR>/MEMORY.md`，必须用文件写入工具追加，供用户查看；Agent 工作区记忆、数据库或 `memory_save` 不能替代该文件。
+
 ## 目标
 
 按规范编写测试用例，数量达标。
@@ -9,37 +11,40 @@
 ## 步骤清单（执行时必须逐项打勾，跳过禁止）
 
 ```
-⬜ 1. 按 9 维度编写测试用例（GET ≥8，POST ≥15，保存至 tests/ 目录）
-⬜ 2. 运行 pytest --co -q 自检用例数
+⬜ 1. 按 9 维度编写测试用例（GET ≥8，POST ≥15）
+⬜ 2. 运行 pytest --collect-only -q 自检用例数
 ⬜ 3. 数量不足则补充
-⬜ 4. 更新 MEMORY.md 覆盖矩阵
+⬜ 4. 更新 `<PROJECT_DIR>/MEMORY.md` 覆盖矩阵
 ```
 
 **执行规则**：每完成一项立即将 `⬜` 改为 `✅`，全部打勾才能进入阶段四。
 
 ## 规则（详见 reference/test-design.md）
 
-### 文件命名与存放路径（强制红线）
-
-- **保存路径**：用 `save_file` 保存为 `<PROJECT_DIR>/tests/test_<模块名>.py`（例如：`<PROJECT_DIR>/tests/test_users.py`）
-- **⚠️ 严禁直接保存在项目根目录**，所有测试用例必须位于 `<PROJECT_DIR>/tests/` 目录下！
-- **⚠️ 严禁使用原生 requests 裸调接口**，所有请求必须通过 `auth_session` 实例方法或 `allure_request()` 发起！
-- **⚠️ 每条用例必须包含 `@allure.title("...")`**、详细 docstring 与 `expected="..."` 参数！
-
-### 用例数量与覆盖维度
-
-- **GET ≥8 条**：正向 + 参数化 + 字段 + 认证 + 无效参数 + 边界 + 安全
-- **POST ≥15 条**：正向 + 字段 + 认证 + 缺必填(每个字段各缺一次) + 空值 + 边界(max/max+1) + 业务规则 + 安全 + 格式
+- **硬性下限按单个接口计算**：每个 GET ≥8 条；每个 POST ≥15 条。参数化用例按 pytest 实际展开后的 node 数计数
+- **完整流程总体目标**：所有接口的平均用例数达到 15-20；这是总体目标，不替代 GET/POST 的单接口硬性下限
+- **GET ≥8 条**：正向 + 参数化 + 字段 + 认证（仅认证 API）+ 无效参数 + 边界 + 安全
+- **POST ≥15 条**：正向 + 字段 + 认证（仅认证 API）+ 缺必填(每个字段各缺一次) + 空值 + 边界(max/max+1) + 业务规则 + 安全 + 格式
 - 一个有 5 必填 + 3 约束的 POST 接口约 25 条，只有 5-8 条说明维度被跳过
+- API 明确无需认证时，禁止臆造 401/403 用例；将认证维度替换为该接口的核心数据完整性或业务规则验证
 
 ## 写完自检
 
 ```
-shell_exec(command="cd \"<PROJECT_DIR>\" && <PYTHON> -m pytest tests/ --co -q")
+shell_exec(command="<ENTER_PROJECT> <PYTHON> -m pytest tests/ --collect-only -q")
 ```
 
-数总数，检查 GET 接口 ≥8 条、POST 接口 ≥15 条（综合平均目标约 15-20 条），不足则补充。
+根据最终 collection 输出建立“方法 + 路径 + 展开后 node 数”表：
+
+1. 每个参数化实例按一个 node 计数，不按函数定义数估算
+2. 表内各接口 node 数之和必须等于 pytest 输出的 collected 总数；不相等先修正映射，禁止凭估算交付
+3. 逐接口检查 GET ≥8、POST ≥15；不足则补齐
+4. 再检查所有接口平均数是否达到 15-20 的总体目标；若因契约范围客观无法达到，在 MEMORY 逐接口写明理由，不得静默略过
 
 ## 产出
 
-📝 MEMORY.md：每个文件的用例数 + 覆盖矩阵。保存追加到 `<PROJECT_DIR>/MEMORY.md`。
+📝 `<PROJECT_DIR>/MEMORY.md`：每个文件的用例数 + 按接口展开后的计数表 + 覆盖矩阵。**必须更新该项目文件，追加本阶段产出。**
+
+## 双重保存
+
+先写 `<PROJECT_DIR>/MEMORY.md`；数据库可用时再额外写数据库。数据库或 Agent 记忆不可替代项目文件。

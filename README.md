@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Python: 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/)
 [![Framework: Pytest](https://img.shields.io/badge/framework-pytest-orange.svg)](https://docs.pytest.org/)
-[![Reporting: Allure & LiteReport](https://img.shields.io/badge/reporting-Allure%20%7C%20LiteReport-yellow.svg)](https://allurereport.org/)
+[![Reporting: Allure or Built-in HTML](https://img.shields.io/badge/reporting-Allure%20%7C%20Built--in_HTML-yellow.svg)](https://allurereport.org/)
 [![Compatible Agents](https://img.shields.io/badge/agents-Universal%20AI%20Agents-purple.svg)](#️-installation--usage)
 
 > **Production-Ready API Automation Testing Skill for AI Agents**  
@@ -19,18 +19,19 @@ Most testing agents fall into common traps: hallucinating API responses, writing
 
 `api-qa-skill` eliminates these pitfalls with strict engineering redlines, human-in-the-loop validation, and modular stage execution:
 
-* 🛡️ **Live Probing & Defensive Assertions**: Prohibits guessing server responses. The Agent must probe live endpoints first with `request_helper` before writing assertions. Requires fault-tolerant status code checks (e.g. `assert res.status_code in (400, 422)`) and loose type checking.
+* 🛡️ **Live Probing & Contract Assertions**: Prohibits guessing server responses. The Agent probes first to identify documentation differences, then writes assertions against the confirmed contract instead of weakening them merely to pass.
 * 🚦 **Human-in-the-Loop Quality Gates**:
   * **Routing Gate**: Automatically routes to the Quick Path (≤ 5 simple endpoints) or Full Workflow (> 5 endpoints or complex business logic), preventing silent quality degradation.
   * **Environment Gate**: Verifies `<PROJECT_DIR>`, Python runtime, and authentication credentials upfront.
   * **Planning Gate**: Confirms test scope and expected case counts with the user before writing test code.
-* 📊 **Zero-Dependency Dual-Track Reporting**:
-  * **When Allure is installed**: Generates standard Allure static reports (`index.html`) using clean batch commands—**never** blocking terminal with background server daemons.
-  * **When Allure is missing**: Uses the built-in pure Python **LiteReport Generator** to output a beautiful, standalone interactive HTML dashboard (`report.html`) with zero Java / Node.js dependencies.
+* 📊 **Single-Entry Conditional Reporting**:
+  * **When Allure works**: Generates only the official static entry `allure-report/index.html`.
+  * **When Allure is unavailable**: Uses the built-in Python generator to create only `allure-report/report.html`.
+  * The two report entries are mutually exclusive, and no server or browser is opened automatically.
 * 📐 **9-Dimension Industrial Test Coverage**: Functional happy paths, data integrity, authentication/authorization, parameter validation, boundary values, business rules, security/injection defense, CRUD chaining, and unified error format.
-* 🔄 **Self-Healing Debug Loop (Up to 5 Rounds)**：Automatically runs the test suite, parses tracebacks, categorizes failures into assertion adjustments vs. actual server defects, and fixes code iteratively until clean pass.
+* 🔄 **Self-Healing Debug Loop (Up to 5 Rounds)**：Automatically runs the test suite, parses tracebacks, fixes test-code issues, and records confirmed API discrepancies without classifying failures by retry count alone.
 * ⚡ **Local & Cloud Model Friendly**: Thanks to progressive context disclosure and deterministic code templates, the skill minimizes prompt bloat and cognitive overhead. It delivers reliable, robust results not only on frontier cloud models (Claude 3.5/3.7, GPT-4o, Gemini 2.0/2.5) but also on local open-source models (e.g., Qwen 2.5-Coder, DeepSeek-Coder, Llama 3 via Ollama / vLLM / LM Studio) without hallucinations or dropped instructions.
-* 📦 **Turnkey Cross-Platform Execution**: Delivers pre-configured `run.sh` (macOS/Linux) and `run.bat` (Windows) scripts with automated environment verification for one-click reproducibility.
+* 📦 **Turnkey Cross-Platform Execution**: Detects the current OS and delivers one matching runner: `run.sh` on macOS/Linux or `run.bat` on Windows.
 
 ---
 
@@ -43,10 +44,10 @@ api-qa-skill/
 ├── README_zh.md                 # Chinese documentation
 ├── LICENSE                      # Apache-2.0 License
 ├── _templates/
-│   └── report_generator.py      # Zero-dependency LiteReport standalone HTML generator
+│   └── report_generator.py      # Built-in standalone HTML fallback generator
 └── reference/
     ├── implementation.md        # Core framework code templates (conftest.py, request_helper.py, etc.)
-    ├── test-design.md           # 9-dimension test design specifications & assertion guide
+    ├── test-design.md           # 9-dimension test design specifications & contract assertion guide
     ├── test-doc.md              # Standardized test case specification format (docs/test_cases.md)
     ├── run-scripts.md           # Cross-platform runner script templates (run.sh / run.bat)
     └── stages/                  # Progressive workflow stages (prevents LLM context overflow)
@@ -77,7 +78,7 @@ Paste the following prompt into any AI Agent conversation, replacing the `[...]`
 ```text
 Please read and strictly follow the engineering protocol in `./api-qa-skill/SKILL.md` to design and implement a production-ready API automated test suite:
 
-- Target Directory: [Directory path to save the test project, e.g., ~/Desktop/my-api-tests; or write "None" to be prompted]
+- Target Directory: [Optional; defaults to ~/Desktop/<service>-api-qa-skill]
 - API Base URL: [Your API Base URL, e.g., https://api.example.com]
 - API Specification: [Paste your Swagger JSON / OpenAPI YAML / Markdown / endpoint list]
 - Authentication: [Specify: Bearer Token / API Key / Login credentials; or write "None" if unauthenticated]
@@ -105,7 +106,7 @@ Please read and strictly follow the engineering protocol in `./api-qa-skill/SKIL
 | **Stage Progression** | 5 discrete stages separated by strict verification gates | 2 consolidated stages for fast execution |
 | **Case Volume** | GET ≥ 8, POST ≥ 15, avg. 15–20 cases per endpoint | 3–5 core cases per endpoint (total ≥ endpoint count × 3) |
 | **Coverage Scope** | All 9 industrial dimensions (boundary, concurrency, security, chaining) | 3 core dimensions (happy path, auth, boundary errors) |
-| **Deliverables** | Test suite + Allure/LiteReport + Test Specs + API Discrepancy Log | Test suite + Allure/LiteReport + Runner scripts + MEMORY Log |
+| **Deliverables** | Test suite + one HTML report + Test Specs + API Discrepancy Log | Test suite + one HTML report + Runner scripts + MEMORY Log |
 
 ---
 
@@ -118,18 +119,17 @@ Upon completion, the Agent outputs a fully standalone, production-ready test rep
 ├── tests/
 │   └── test_*.py            # Clean, modular pytest test cases with Allure decorators
 ├── utils/
-│   ├── request_helper.py    # Request wrapper with step logging & Bearer token injection
-│   └── report_generator.py  # (When Allure is absent) Standalone HTML report generator
+│   ├── request_helper.py    # Request wrapper with step logging & configurable auth injection
+│   └── report_generator.py  # Always-delivered standalone HTML fallback generator
 ├── conftest.py              # Global fixtures (base_url, auth_session, cleanup hooks)
 ├── pytest.ini               # Pytest markers and Allure configurations
 ├── requirements.txt         # Minimal, pinned test dependencies
-├── .env                     # API base URL and token secrets (git-ignored)
-├── run.sh / run.bat         # Cross-platform one-click execution & report generation scripts
-├── MEMORY.md                # Endpoint inventory, API spec discrepancies, self-healing log
+├── .env                     # API base URL and authentication settings/secrets (git-ignored)
+├── run.sh or run.bat        # Exactly one runner matching the detected OS
+├── MEMORY.md                # Required user-visible project record; never replaced by agent memory
 ├── docs/test_cases.md       # (Full Workflow) Comprehensive test design documentation
-└── allure-report/           # Final generated report
-    ├── index.html           # (When Allure is present) Official Allure static report
-    └── report.html          # (When Allure is absent) LiteReport single-file standalone dashboard
+└── allure-report/           # Exactly one final report entry
+    └── index.html           # Allure works; otherwise report.html is generated instead
 ```
 
 ---

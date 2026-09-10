@@ -11,18 +11,19 @@
 
 市面上大部分测试 Agent 往往容易陷入“凭空捏造返回”、“断言脆弱假报错”、“自顾自乱跑修改环境”的陷阱。本项目融合了真实测试工程踩坑经验，通过严苛的**红线防御机制**与**分段按需加载**，确保交付可用、稳定、高质量的工程代码。
 
-* 🛡️ **真实探活与防御性断言**：严禁凭空想象返回，强制先调用真实接口探活再写断言；强制采用多状态码容错（如 `in (400, 422)`）与灵活类型校验，避免脆弱断言。
+* 🛡️ **真实探活与契约断言**：严禁凭空想象返回；先探活识别文档差异，再按用户确认的契约写断言，禁止只为全绿而放宽。
 * 🚦 **人在回路（Human-in-the-Loop）质量门禁**：
   * **路由门禁**：根据接口数量（≤5 走快速路径，>5 走完整流程）与复杂度锁定执行路径，全程防降级偷懒。
-  * **环境门禁**：前置核验项目目录、Python 解释器与鉴权 Token，防止环境污染与未授权写入。
+  * **环境门禁**：前置核验项目目录、Python 解释器与实际鉴权配置，防止环境污染与未授权写入。
   * **计划门禁**：对齐预期用例数与测试覆盖范围后方可动笔。
-* 📊 **轻量自洽的双轨测试报告体系**：
-  * **环境有 Allure**：无缝对接官方 `allure-pytest`，自动化生成静态测试大盘（`index.html`），严禁阻塞式后台服务。
-  * **环境无 Allure**：内置纯 Python 原生驱动的 **LiteReport 生成器**（零 Java 依赖、零外部命令），直出独立单文件交互式 HTML 报告（`report.html`）。
+* 📊 **单入口条件报告体系**：
+  * **Allure 可用**：只生成官方静态入口 `allure-report/index.html`。
+  * **Allure 不可用**：只由内置 Python 生成器生成 `allure-report/report.html`。
+  * 两个报告入口互斥，且不会自动启动服务或浏览器。
 * 📐 **9 维度工业级用例覆盖**：涵盖 正向功能、数据完整性、认证鉴权、参数校验、边界值分析、业务逻辑规则、安全性注入防御、CRUD 链式场景、统一错误响应格式。
-* 🔄 **闭环自愈调优（最多 5 轮）**：自动分析失败是用例断言偏差还是服务端真实 Bug；自动修正用例代码直至全部通过或精准归档为接口差异缺陷。
+* 🔄 **闭环自愈调优（最多 5 轮）**：自动分析失败、修正用例代码，并依据契约与复现证据记录接口差异，不以重试次数直接判定服务端 Bug。
 * ⚡ **本地与云端模型全适配（Local & Cloud LLMs Friendly）**：得益于模块化按需加载（Progressive Disclosure）与确定性的代码模板，大幅降低了模型的注意力消耗与幻觉率。不仅在顶级商业模型（Claude 3.5/3.7、GPT-4o、Gemini）上表现拔群，在本地开源小模型（如 Qwen 2.5-Coder、DeepSeek-Coder、Llama 3 等通过 Ollama / vLLM 驱动）下同样能稳定输出严谨用例并闭环自愈。
-* 📦 **开箱即用的一键运行脚本**：自动适配 macOS/Linux (`run.sh`) 与 Windows (`run.bat`)，内置环境检测与权限管理，交付给任何人均可一键复现执行。
+* 📦 **开箱即用的一键运行脚本**：检测当前系统后只交付对应的一份：macOS/Linux 为 `run.sh`，Windows 为 `run.bat`。
 
 ---
 
@@ -35,10 +36,10 @@ api-qa-skill/
 ├── README_zh.md                 # 项目说明文档 (简体中文)
 ├── LICENSE                      # Apache-2.0 开源协议
 ├── _templates/
-│   └── report_generator.py      # LiteReport 独立单文件 HTML 测试报告生成器
+│   └── report_generator.py      # 内置独立单文件 HTML 回退生成器
 └── reference/
     ├── implementation.md        # 核心框架代码模板（conftest.py / request_helper.py 等）
-    ├── test-design.md           # 9 维度用例设计规范与防御性断言写法指南
+    ├── test-design.md           # 9 维度用例设计规范与契约断言指南
     ├── test-doc.md              # 交付级用例文档规范（docs/test_cases.md）
     ├── run-scripts.md           # 跨平台一键运行脚本模板（run.sh / run.bat）
     └── stages/                  # 分阶段渐进式工作流文件（避免上下文溢出）
@@ -69,7 +70,7 @@ git clone https://github.com/kongbai26/api-qa-skill.git
 ```text
 请阅读并严格遵循 `./api-qa-skill/SKILL.md` 的工程规约，为以下接口设计并生成一套生产级自动化测试工程：
 
-- 测试工程保存目录：[你想保存测试代码的目录路径，如 ~/Desktop/my-api-tests；没想好写“无”后续会询问]
+- 测试工程保存目录：[可选；不填时默认 ~/Desktop/<service>-api-qa-skill]
 - API 基地址：[你的 API 服务基准地址，例如 https://api.example.com]
 - 接口定义文档：[粘贴你的 Swagger / OpenAPI / Markdown / 接口清单]
 - 认证鉴权信息：[例如 Bearer Token / API Key / 登录账号密码；没有或无需认证直接写“无”]
@@ -109,18 +110,17 @@ git clone https://github.com/kongbai26/api-qa-skill.git
 ├── tests/
 │   └── test_*.py            # 规范编写的 pytest 测试用例
 ├── utils/
-│   ├── request_helper.py    # 封装了 Allure 步骤记录与 Token 自动注入的请求助手
-│   └── report_generator.py  # （无 Allure 环境时）轻量单文件报告生成器
+│   ├── request_helper.py    # 封装了 Allure 步骤记录与可配置鉴权注入的请求助手
+│   └── report_generator.py  # 始终交付的内置单文件回退生成器
 ├── conftest.py              # 全局 Fixture（base_url, auth_session, 日志钩子等）
 ├── pytest.ini               # Pytest 与 Allure 标准配置
 ├── requirements.txt         # 项目所需依赖
 ├── .env                     # API 基础路径与密钥配置
-├── run.sh / run.bat         # 跨平台一键执行测试并产出报告的入口脚本
-├── MEMORY.md                # 接口清单、文档与实际差异表、自愈修复记录
+├── run.sh 或 run.bat        # 只交付与检测到的 OS 对应的一份
+├── MEMORY.md                # 用户可见的强制项目文档，不得以 Agent 记忆替代
 ├── docs/test_cases.md       # （完整流程产出）标准化用例设计文档
-└── allure-report/           # 最终测试报告
-    ├── index.html           # （环境有 Allure 时）官方多文件报告入口
-    └── report.html          # （环境无 Allure 时）LiteReport 独立单文件报告
+└── allure-report/           # 最终只保留一个报告入口
+    └── index.html           # Allure 可用；否则改为生成 report.html
 ```
 
 ---

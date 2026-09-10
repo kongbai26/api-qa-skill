@@ -13,6 +13,8 @@
 
 功能正向 / 数据完整性 / 认证权限 / 参数校验 / 边界值 / 业务规则 / 安全性 / CRUD链式 / 错误格式一致
 
+认证权限维度只适用于契约要求认证的接口。明确无需认证的 API 不得臆造 401/403；用数据完整性或业务规则场景补足覆盖。
+
 ## 错误推测清单
 
 null / 空字符串 / 纯空格 / 类型错配 / 空数组 / 超长文本 / 特殊字符(emoji/换行) / 重复提交 / 并发 / 空body / Content-Type错
@@ -21,23 +23,21 @@ null / 空字符串 / 纯空格 / 类型错配 / 空数组 / 超长文本 / 特�
 
 ```python
 @allure.title("接口功能 - 具体验证点")   # ① 中文标题
-def test_xxx(self, auth_session):
+def test_xxx(self):
     """描述测什么、为什么。"""             # ② docstring
-    resp = auth_session.get("/path", expected="具体预期")  # ③ 预期结果
+    resp = allure_request(..., expected="具体预期")  # ③ 预期结果
 ```
 
 参数化用 `{参数名}` 自动替换。
 
-## ⚠️ 编写红线
-1. **存放路径**：所有用例文件必须保存为 `<PROJECT_DIR>/tests/test_<模块名>.py`，严禁存放在项目根目录。
-2. **禁止直接调用 requests**：必须通过 `auth_session` 实例方法或 `allure_request` 发起请求，以注入 Allure 步骤与附件。
-3. **必须传递 expected 参数**：每次调用必须传 `expected="..."`，确保报告展示明确预期。
+## 编写红线
 
-## 断言防御写法
+1. 用例文件固定保存为 `<PROJECT_DIR>/tests/test_<模块名>.py`
+2. 禁止直接调用 `requests.get/post/put/patch/delete`；必须通过 `auth_session` 或 `allure_request`
+3. 每次 HTTP 调用必须传中文 `expected="..."`
 
-| 场景 | 错误 | 正确 |
-|------|------|------|
-| 校验错误码 | `== 422` | `in (400, 422)` |
-| 字段类型 | `isinstance(x, str)` | `isinstance(x, (str, int, float))` |
-| 业务错误码 | `== "XXX"` | `in {"XXX", "YYY"}` |
-| 时间窗口 | 只判断 200 | 接受 200 或限制错误码 |
+## 断言写法
+
+实际探测用于发现文档差异；正式断言以用户确认的契约为准。契约规定单一状态码、字段类型或业务错误码时精确断言；只有契约明确允许多个结果时才使用集合断言并注明原因。禁止仅为全绿而放宽断言。
+
+用例数量以 `pytest --collect-only -q` 展开后的测试 node 为准。参数化的每个实例计为一条；按接口计数表之和必须与 pytest collected 总数一致。

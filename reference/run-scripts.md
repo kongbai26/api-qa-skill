@@ -1,6 +1,6 @@
 # run.sh / run.bat 代码
 
-必须原样使用，不要自己重写。
+根据 `OS_TYPE` 只复制一个对应代码块：Darwin/Linux 使用 `run.sh`，Windows 使用 `run.bat`。代码必须原样使用，不要自己重写；新项目禁止同时生成两份脚本。
 
 ⚠️ **run.bat 编码规则**：bat 文件必须用纯 ASCII 编码，禁止包含任何中文字符。原因：cmd.exe 读 .bat 文件使用系统默认编码（中文 Windows 是 GBK），而 agent 的 `save_file` 工具默认保存为 UTF-8，两者不匹配会导致中文乱码并破坏 bat 语法。`chcp 65001` 只影响控制台输出编码，不影响文件读取编码。纯 ASCII 是唯一可靠的方案。
 
@@ -24,28 +24,38 @@ if [ -z "$PYTHON" ]; then
     echo "ERROR: python not found. Set PYTHON=/path/to/python and retry."
     exit 1
 fi
-echo "Using: $PYTHON ($($PYTHON --version 2>&1))"
+echo "Using: $PYTHON ($("$PYTHON" --version 2>&1))"
 
 "$PYTHON" -m pip install -q -r requirements.txt
-"$PYTHON" -m pytest tests/ -v --tb=short --alluredir=allure-results "$@"
+"$PYTHON" -m pytest tests/ -v --tb=short --alluredir=allure-results --clean-alluredir "$@"
 TEST_EXIT_CODE=$?
 if [ $TEST_EXIT_CODE -ne 0 ]; then
     echo "测试有失败，继续生成报告..."
 fi
 
-# 检查 allure-results 是否存在
-if [ ! -d "allure-results" ] || [ -z "$(ls -A allure-results 2>/dev/null)" ]; then
-    echo "ERROR: allure-results 目录不存在或为空，无法生成报告"
+# 检查 allure-results 是否包含测试结果
+if ! find allure-results -maxdepth 1 -type f -name '*-result.json' -print -quit 2>/dev/null | grep -q .; then
+    echo "ERROR: allure-results 中没有 *-result.json，无法生成报告"
     exit 1
 fi
 
-if command -v allure &>/dev/null; then
-    allure generate allure-results -o allure-report --clean && allure serve allure-results
-    echo "报告已生成: allure-report/index.html"
+if command -v allure &>/dev/null && allure --version >/dev/null 2>&1; then
+    allure generate allure-results -o allure-report --clean
+    REPORT_EXIT_CODE=$?
+    REPORT_PATH="allure-report/index.html"
+    UNEXPECTED_REPORT="allure-report/report.html"
 else
-    "$PYTHON" utils/report_generator.py
-    echo "报告已生成: allure-report/report.html"
+    "$PYTHON" utils/report_generator.py --input allure-results --output allure-report/report.html --clean
+    REPORT_EXIT_CODE=$?
+    REPORT_PATH="allure-report/report.html"
+    UNEXPECTED_REPORT="allure-report/index.html"
 fi
+
+if [ $REPORT_EXIT_CODE -ne 0 ] || [ ! -s "$REPORT_PATH" ] || [ -e "$UNEXPECTED_REPORT" ]; then
+    echo "ERROR: 报告生成失败或报告入口不唯一"
+    exit 1
+fi
+echo "报告已生成: $REPORT_PATH"
 
 exit $TEST_EXIT_CODE
 ```
@@ -67,25 +77,33 @@ if not defined PYTHON (
 )
 
 echo Using: %PYTHON%
-%PYTHON% --version
+"%PYTHON%" --version
 
-%PYTHON% -m pip install -q -r requirements.txt
-%PYTHON% -m pytest tests/ -v --tb=short --alluredir=allure-results
+"%PYTHON%" -m pip install -q -r requirements.txt
+"%PYTHON%" -m pytest tests/ -v --tb=short --alluredir=allure-results --clean-alluredir
 set TEST_EXIT_CODE=%ERRORLEVEL%
 
 if %TEST_EXIT_CODE% neq 0 echo Some tests failed, continuing to generate report...
 
-if not exist "allure-results" (
-    echo ERROR: allure-results is empty, cannot generate report
+if not exist "allure-results\*-result.json" (
+    echo ERROR: no *-result.json in allure-results
     exit /b 1
 )
 
-where allure >nul 2>&1
+where allure >nul 2>&1 && allure --version >nul 2>&1
 if not errorlevel 1 (
     allure generate allure-results -o allure-report --clean
+    if errorlevel 1 exit /b 1
+    if not exist "allure-report\index.html" exit /b 1
+    if exist "allure-report\report.html" exit /b 1
+    for %%F in ("allure-report\index.html") do if %%~zF LEQ 0 exit /b 1
     echo Report: allure-report\index.html
 ) else (
-    %PYTHON% utils\report_generator.py
+    "%PYTHON%" utils\report_generator.py --input allure-results --output allure-report/report.html --clean
+    if errorlevel 1 exit /b 1
+    if not exist "allure-report\report.html" exit /b 1
+    if exist "allure-report\index.html" exit /b 1
+    for %%F in ("allure-report\report.html") do if %%~zF LEQ 0 exit /b 1
     echo Report: allure-report\report.html
 )
 

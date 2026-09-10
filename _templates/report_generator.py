@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Zb-Report 测试报告生成器
-========================
+API 测试报告生成器
+==================
 从 allure-results/*.json 生成轻量单 HTML 测试报告。
 内置 CSS/JS 渲染，无需外部依赖。
 
@@ -10,7 +10,7 @@ Zb-Report 测试报告生成器
     python utils/report_generator.py --input allure-results --output allure-report/report.html
 """
 
-import json, os, sys, glob, hashlib, base64, gzip, io, html as _html
+import json, os, sys, glob, hashlib, base64, gzip, io, html as _html, shutil
 from pathlib import Path
 
 
@@ -261,7 +261,7 @@ def suites_tree(results):
 def timeline_tree(results):
     threads = {}
     for r in results:
-        h = gl(r,"host") or "localhost"
+        h = gl(r,"host") or "unknown-host"
         t = gl(r,"thread") or "main"
         threads.setdefault(h,{}).setdefault(t,[]).append(r)
     ch = []
@@ -271,8 +271,18 @@ def timeline_tree(results):
     return {"uid":uid(),"name":"timeline","children":ch}
 
 
-def generate_report(results_dir="allure-results", output="allure-report/report.html"):
+def generate_report(results_dir="allure-results", output="allure-report/report.html", title=None, clean=False):
     _reset_uids()
+    title = title or os.environ.get("REPORT_TITLE", "").strip() or f"{Path.cwd().name} API Test Report"
+    output_path = Path(output)
+    if clean and output_path.parent.exists():
+        report_dir = output_path.parent.resolve()
+        input_dir = Path(results_dir).resolve()
+        if report_dir.name != "allure-report":
+            raise ValueError("--clean 只允许清理名为 allure-report 的输出目录")
+        if input_dir == report_dir or report_dir in input_dir.parents:
+            raise ValueError("报告目录不能包含输入结果目录")
+        shutil.rmtree(report_dir)
     results = load_results(results_dir)
     if not results:
         print(f"未找到: {results_dir}/*-result.json")
@@ -290,7 +300,7 @@ def generate_report(results_dir="allure-results", output="allure-report/report.h
     starts = [r["start"] for r in results if r.get("start")]
     stops = [r["stop"] for r in results if r.get("stop")]
     durs = [r.get("stop",0)-r.get("start",0) for r in results if r.get("start") and r.get("stop")]
-    D["widgets/summary.json"] = json.dumps({"reportName":"Zb-Report","testRuns":[],
+    D["widgets/summary.json"] = json.dumps({"reportName":title,"testRuns":[],
         "statistic":stat(results),"time":{"start":min(starts) if starts else 0,"stop":max(stops) if stops else 0,
         "duration":(max(stops)-min(starts)) if starts and stops else 0,
         "minDuration":min(durs) if durs else 0,"maxDuration":max(durs) if durs else 0,"sumDuration":sum(durs)}},ensure_ascii=False)
@@ -414,7 +424,7 @@ def generate_report(results_dir="allure-results", output="allure-report/report.h
     b64 = base64.b64encode(compressed).decode("ascii")
     print(f"  压缩: {raw_size/1024/1024:.2f}MB -> {len(compressed)/1024/1024:.2f}MB ({len(compressed)/raw_size*100:.1f}%)")
 
-    html = _build_html(b64)
+    html = _build_html(b64, title)
 
     was_written = write_text_if_changed(output, html)
 
@@ -428,7 +438,7 @@ def generate_report(results_dir="allure-results", output="allure-report/report.h
 
 
 # ---------------------------------------------------------------------------
-#  Zb-Report 轻量 HTML 模板
+#  轻量 HTML 模板
 # ---------------------------------------------------------------------------
 
 _CSS = r"""
@@ -658,14 +668,14 @@ function renderNav(){
   var nav=E('div','side-nav');
   // logo
   var logo=E('div','side-nav-logo');
-  logo.innerHTML='<span class="logo-text">Zb</span><span class="logo-ver">Report</span>';
+  logo.textContent=summary.reportName||'API Test Report';
   nav.appendChild(logo);
   [{t:'overview',l:'\u603B\u89C8'},{t:'categories',l:'\u7C7B\u522B'},{t:'suites',l:'\u5957\u4EF6'},{t:'behaviors',l:'\u529F\u80FD'}].forEach(function(item){
     var a=E('div','side-nav-item'+(curTab===item.t?' active':''));
     a.innerHTML=(navIcons[item.t]||'')+item.l;
     a.onclick=function(){curTab=item.t;render()};nav.appendChild(a);
   });
-  var footer=E('div','side-nav-footer','Zb-Report v1.0');
+  var footer=E('div','side-nav-footer','Standalone HTML Report');
   nav.appendChild(footer);
   nc.appendChild(nav);
 }
@@ -782,7 +792,7 @@ function renderOverview(){
   var ct=$('#content');ct.innerHTML='';
   var st=summary.statistic||{},total=st.total||0,passed=st.passed||0,failed=st.failed||0,broken=st.broken||0;
   var ov=E('div','overview');
-  ov.appendChild(E('div','ov-title',esc(summary.reportName||'Zb-Report')));
+  ov.appendChild(E('div','ov-title',esc(summary.reportName||'API Test Report')));
   var sub=total+' \u4E2A\u7528\u4F8B';if(summary.time&&summary.time.duration)sub+=' \u00B7 '+fmtDur(summary.time.duration);
   ov.appendChild(E('div','ov-sub',sub));
   var grid=E('div','widgets-grid'),col1=E('div','widgets-col'),col2=E('div','widgets-col');
@@ -822,21 +832,22 @@ initResizer();render();
 
 
 
-def _build_html(compressed_b64):
+def _build_html(compressed_b64, title):
     css = _CSS
     js = _JS
+    safe_title = _html.escape(title)
     return f'''<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<title>Zb-Report</title>
+<title>{safe_title}</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>\U0001f4ca</text></svg>">
 <style>{css}</style>
 </head>
 <body>
 <div class="header">
   <span class="brand">
-    <span class="brand-name">Zb-Report</span>
+    <span class="brand-name">{safe_title}</span>
     <span class="brand-dot">\u00B7</span>
     <span class="brand-project"></span>
   </span>
@@ -858,5 +869,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="\u751F\u6210\u6D4B\u8BD5\u62A5\u544A")
     parser.add_argument("--input", default="allure-results", help="allure-results \u76EE\u5F55")
     parser.add_argument("--output", default="allure-report/report.html", help="\u8F93\u51FA HTML")
+    parser.add_argument("--title", default=None, help="\u62A5\u544A\u6807\u9898\uff08\u9ED8\u8BA4\u8BFB\u53D6 REPORT_TITLE \u6216\u9879\u76EE\u76EE\u5F55\u540D\uff09")
+    parser.add_argument("--clean", action="store_true", help="\u751F\u6210\u524D\u6E05\u7406\u65E7\u62A5\u544A\u76EE\u5F55")
     args = parser.parse_args()
-    generate_report(args.input, args.output)
+    generate_report(args.input, args.output, title=args.title, clean=args.clean)
