@@ -19,11 +19,12 @@
 * 📊 **单入口条件报告体系**：
   * **Allure 可用**：只生成官方静态入口 `allure-report/index.html`。
   * **Allure 不可用**：只由内置 Python 生成器生成 `allure-report/report.html`。
-  * 两个报告入口互斥，且不会自动启动服务或浏览器。
+  * 两个报告入口互斥；运行脚本固定使用生成项目时已验证的分支，不会自动启动服务或浏览器。
+  * 交付审计解析报告资源或嵌入数据，交叉核对原始结果，不使用固定行数或文件大小判定完整性。
 * 📐 **9 维度工业级用例覆盖**：涵盖 正向功能、数据完整性、认证鉴权、参数校验、边界值分析、业务逻辑规则、安全性注入防御、CRUD 链式场景、统一错误响应格式。
 * 🔄 **闭环自愈调优（最多 5 轮）**：自动分析失败、修正用例代码，并依据契约与复现证据记录接口差异，不以重试次数直接判定服务端 Bug。
-* ⚡ **本地与云端模型全适配（Local & Cloud LLMs Friendly）**：得益于模块化按需加载（Progressive Disclosure）与确定性的代码模板，大幅降低了模型的注意力消耗与幻觉率。不仅在顶级商业模型（Claude 3.5/3.7、GPT-4o、Gemini）上表现拔群，在本地开源小模型（如 Qwen 2.5-Coder、DeepSeek-Coder、Llama 3 等通过 Ollama / vLLM 驱动）下同样能稳定输出严谨用例并闭环自愈。
-* 📦 **开箱即用的一键运行脚本**：检测当前系统后只交付对应的一份：macOS/Linux 为 `run.sh`，Windows 为 `run.bat`。
+* ⚡ **小模型友好**：阶段说明继续按需加载，确定性项目资产由脚本直接复制，不把模板源码灌入模型上下文，消除最主要的固定上下文开销。
+* 📦 **开箱即用的一键运行脚本**：检测当前系统后先预置对应的一份：macOS/Linux 为 `run.sh`，Windows 为 `run.bat`；同时固定已确认的报告模式，并在最终交付前实跑、再审计其最新产物。命令能力受阻时保留脚本交给用户执行，不会虚报已完成。
 
 ---
 
@@ -36,12 +37,19 @@ api-qa-skill/
 ├── README_zh.md                 # 项目说明文档 (简体中文)
 ├── LICENSE                      # Apache-2.0 开源协议
 ├── _templates/
+│   ├── project/                 # 不进入模型上下文的 pytest 项目资产
+│   ├── run.sh                   # macOS/Linux 运行脚本资产
+│   ├── run.bat                  # Windows 纯 ASCII 运行脚本资产
 │   └── report_generator.py      # 内置独立单文件 HTML 回退生成器
+├── scripts/
+│   ├── configure_project_env.py # 保留凭据的项目内 .env 合并器
+│   ├── materialize_templates.py # 按分支复制且不覆盖定制文件
+│   └── validate_delivery.py     # 最终语义交付审计
 └── reference/
-    ├── implementation.md        # 核心框架代码模板（conftest.py / request_helper.py 等）
+    ├── implementation.md        # 仅已有文件冲突或动态认证时读取
     ├── test-design.md           # 9 维度用例设计规范与契约断言指南
     ├── test-doc.md              # 交付级用例文档规范（docs/test_cases.md）
-    ├── run-scripts.md           # 跨平台一键运行脚本模板（run.sh / run.bat）
+    ├── run-scripts.md           # 仅既有脚本冲突或命令受阻需降级预置时读取
     └── stages/                  # 分阶段渐进式工作流文件（避免上下文溢出）
         ├── stage-full-setup.md  # 完整流程 阶段一：信息收集与环境确认
         ├── stage-2-setup.md     # 完整流程 阶段二：框架搭建与接口探活
@@ -56,7 +64,7 @@ api-qa-skill/
 
 ## 🛠️ 安装与通用使用方法
 
-本项目设计为**高度通用、模型无关（Model-Agnostic）的 Agent 规范资产**。无论你使用的是终端命令行 Agent、AI 编程 IDE、自主编程扩展，还是普通网页端大模型，都可以无缝运行。
+本项目是**宿主无关、模型无关（Model-Agnostic）的 Agent 工作流**。只要宿主能够加载完整 Skill 目录，并提供等价的文件读写、递归枚举、Shell/Python 执行和真实 HTTP 访问能力，就能执行同一套流程；任务清单工具不是硬依赖，因为流程保留文本清单回退。只有对话、没有文件系统或执行能力的宿主可以阅读规范，但不能声称已生成或审计可运行项目。
 
 ### 1. 快速获取
 将仓库克隆到本地：
@@ -70,23 +78,19 @@ git clone https://github.com/kongbai26/api-qa-skill.git
 ```text
 请阅读并严格遵循 `./api-qa-skill/SKILL.md` 的工程规约，为以下接口设计并生成一套生产级自动化测试工程：
 
-- 测试工程保存目录：[可选；不填时默认 ~/Desktop/<service>-api-qa-skill]
+- 测试工程保存目录：[可选；不填时 Agent 必须询问，回复“默认”后使用 ~/Desktop/<service>-api-qa-skill]
 - API 基地址：[你的 API 服务基准地址，例如 https://api.example.com]
 - 接口定义文档：[粘贴你的 Swagger / OpenAPI / Markdown / 接口清单]
-- 认证鉴权信息：[例如 Bearer Token / API Key / 登录账号密码；没有或无需认证直接写“无”]
+- 认证鉴权信息：[只填写认证方式和凭据环境变量名；不要粘贴 Token、API Key、密码或 Cookie。没有或无需认证直接写“无”]
 ```
 
 ---
 
-### 3. 主流 AI 工具生态集成速查
+### 3. 宿主能力映射
 
-| 工具类别 | 代表平台 | 推荐集成与使用方式 |
-| :--- | :--- | :--- |
-| **Agent CLI / 终端助手** | **Claude Code**<br>**Antigravity (AGY)**<br>**Aider / Goose / OpenCode** | 克隆至项目根目录或全局技能目录：<br>• **Antigravity**: `git clone https://github.com/kongbai26/api-qa-skill.git ~/.gemini/antigravity-cli/skills/api-qa-skill`<br>• **Claude Code**: 在 `CLAUDE.md` 中增加 `参考 ./api-qa-skill/SKILL.md 执行接口自动化测试`<br>• **Aider / Goose**: 启动时传入参数 `--message "阅读 ./api-qa-skill/SKILL.md 并执行..."` |
-| **AI 原生 IDE / 编辑器** | **Cursor**<br>**Windsurf**<br>**GitHub Copilot (VS Code)** | • **Cursor**: 在 `.cursor/rules/api-qa.mdc` 或 Composer 中通过 `@api-qa-skill/SKILL.md` 引用<br>• **Windsurf**: 在 `.windsurfrules` 中引入规约文件<br>• **Copilot**: 在对话中输入 `@workspace` 并引用 `./api-qa-skill/SKILL.md` |
-| **自主编程插件** | **Cline / Roo Code**<br>**Continue.dev** | 放入项目目录。在 Custom Instructions / 规则中配置：<br>`"当需要生成或维护 API 自动化测试时，必须严格阅读并执行 ./api-qa-skill/SKILL.md"` |
-| **网页端 / API 大模型** | **ChatGPT / Claude.ai**<br>**DeepSeek / Gemini / Kimi** | 直接将 `SKILL.md` 作为文件附件上传或填入系统提示词。提供接口文档，大模型即可作为高级 QA 架构师输出全套用例设计与测试脚本。 |
-| **独立工程脚手架** | **QA 工程师 / CI/CD 流水线** | 无需任何 AI Agent。直接复用 `_templates/report_generator.py` 与 `reference/implementation.md` 作为现代 pytest + Allure 自动化测试项目的标准工程骨架。 |
+不要为不同产品重写主流程。加载后只需把宿主原生工具一次性映射为这些能力：定位已加载 Skill 目录、文件读写、项目递归枚举、Shell/Python 执行、真实 HTTP 请求。宿主有任务清单工具就使用；没有则持续维护同一份文本清单。执行时必须提供**完整目录**，因为 `SKILL.md` 会按阶段读取 reference，并按路径调用脚本和模板；只上传一个 `SKILL.md` 不足以完成工程生成和审计。
+
+流程保留老版硬门：开始项目操作前，用户必须明确选择流程、确认项目目录、授权自动检测或指定运行环境，并补齐 API Base URL/认证方式。宿主工作区、CWD 和工具默认路径一律不算用户确认项目目录。完整流程还必须等待用户确认计划；只有所有阶段清单已逐项打勾且最终交付审计通过，才能结束任务。
 
 ---
 
@@ -111,7 +115,7 @@ git clone https://github.com/kongbai26/api-qa-skill.git
 │   └── test_*.py            # 规范编写的 pytest 测试用例
 ├── utils/
 │   ├── request_helper.py    # 封装了 Allure 步骤记录与可配置鉴权注入的请求助手
-│   └── report_generator.py  # 始终交付的内置单文件回退生成器
+│   └── report_generator.py  # 仅检测到无 Allure CLI 时交付的单文件生成器
 ├── conftest.py              # 全局 Fixture（base_url, auth_session, 日志钩子等）
 ├── pytest.ini               # Pytest 与 Allure 标准配置
 ├── requirements.txt         # 项目所需依赖

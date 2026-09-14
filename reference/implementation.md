@@ -1,415 +1,124 @@
-# 实现规范
-
-## conftest.py 完整代码
-
-用 `save_file` 保存为 `<PROJECT_DIR>/conftest.py`：
-
-```python
-import os
-import pytest
-import allure
-from dotenv import load_dotenv
-
-load_dotenv()
-
-from utils.request_helper import AuthSession, allure_request
-
-BASE_URL = os.environ.get("API_BASE_URL", "").strip()
-API_TOKEN = os.environ.get("API_TOKEN", "").strip()
-API_USERNAME = os.environ.get("API_USERNAME", "").strip()
-API_PASSWORD = os.environ.get("API_PASSWORD", "").strip()
-API_AUTH_MODE = os.environ.get("API_AUTH_MODE", "").strip().lower()
-API_AUTH_LOCATION = os.environ.get("API_AUTH_LOCATION", "header").strip().lower()
-API_AUTH_NAME = os.environ.get("API_AUTH_NAME", "").strip()
-LEGACY_AUTH_HEADER = os.environ.get("API_AUTH_HEADER", "").strip()
-LEGACY_AUTH_QUERY_PARAM = os.environ.get("API_AUTH_QUERY_PARAM", "").strip()
-LEGACY_AUTH_COOKIE = os.environ.get("API_AUTH_COOKIE", "").strip()
-API_AUTH_SCHEME = os.environ.get("API_AUTH_SCHEME", "").strip()
-
-# 兼容旧项目：未配置 API_AUTH_MODE 时，沿用原 API_TOKEN + LOCATION 语义。
-if not API_AUTH_MODE:
-    if API_USERNAME or API_PASSWORD:
-        API_AUTH_MODE = "basic"
-    elif API_TOKEN:
-        API_AUTH_MODE = API_AUTH_LOCATION if API_AUTH_LOCATION in {"query", "cookie"} else (
-            "bearer" if (
-                (not LEGACY_AUTH_HEADER or LEGACY_AUTH_HEADER.lower() == "authorization")
-                and (not API_AUTH_SCHEME or API_AUTH_SCHEME.lower() == "bearer")
-            )
-            else "header"
-        )
-    else:
-        API_AUTH_MODE = "none"
-
-ALLOWED_AUTH_MODES = {"none", "bearer", "header", "query", "cookie", "basic", "dynamic"}
-if API_AUTH_MODE not in ALLOWED_AUTH_MODES:
-    raise pytest.UsageError("API_AUTH_MODE 只允许 none/bearer/header/query/cookie/basic/dynamic")
-
-API_AUTH_HEADER = LEGACY_AUTH_HEADER or API_AUTH_NAME or (
-    "Authorization" if API_AUTH_MODE == "bearer" else ""
-)
-API_AUTH_QUERY_PARAM = LEGACY_AUTH_QUERY_PARAM or API_AUTH_NAME
-API_AUTH_COOKIE = LEGACY_AUTH_COOKIE or API_AUTH_NAME
-
-AUTH_READY = (
-    API_AUTH_MODE == "none"
-    or (API_AUTH_MODE in {"bearer", "header", "query", "cookie"} and bool(API_TOKEN))
-    or (API_AUTH_MODE == "basic" and bool(API_USERNAME and API_PASSWORD))
-)
-
-
-@pytest.fixture(scope="session")
-def base_url():
-    """向不使用认证会话的契约用例提供统一 Base URL。"""
-    if not BASE_URL.startswith(("http://", "https://")):
-        pytest.fail("API_BASE_URL 未配置为完整的 HTTP(S) 地址")
-    return BASE_URL
-
-
-@pytest.fixture(scope="session")
-def auth_session():
-    if API_AUTH_MODE != "none" and not AUTH_READY:
-        pytest.skip("认证凭据尚未由用户在本地配置")
-    return AuthSession(BASE_URL, API_TOKEN, API_AUTH_LOCATION,
-                       API_AUTH_HEADER, API_AUTH_QUERY_PARAM, API_AUTH_SCHEME,
-                       auth_mode=API_AUTH_MODE, auth_cookie=API_AUTH_COOKIE,
-                       username=API_USERNAME, password=API_PASSWORD)
-
-
-@pytest.fixture(autouse=True)
-def reset_request_counter():
-    from utils import request_helper
-    request_helper._request_counter = 0
-
-
-def pytest_runtest_makereport(item, call):
-    if call.when == "call":
-        outcome = call.excinfo is None
-        if outcome:
-            status = "✅ PASSED"
-        elif call.excinfo.errisinstance(pytest.skip.Exception):
-            status = "⏭️ SKIPPED"
-        else:
-            tb_lines = str(call.excinfo.value).split("\n")[:8]
-            status = f"❌ FAILED\n┌─ Error ─┐\n" + "\n".join(f"│ {l}" for l in tb_lines) + "\n└─────────┘"
-        print(f"\n  {status}")
-
-
-def pytest_collection_modifyitems(items):
-    for item in items:
-        if "need_auth" in item.keywords and not AUTH_READY:
-            item.add_marker(pytest.mark.skip(reason="认证凭据尚未由用户在本地配置"))
-
-
-def pytest_sessionfinish(session, exitstatus):
-    """测试会话结束时，将日志附加到 Allure 报告"""
-    from pathlib import Path
-
-    log_file = Path("logs/test.log")
-    if log_file.exists():
-        content = log_file.read_text(encoding="utf-8")
-        if content.strip():
-            try:
-                allure.attach(content, name="📄 测试日志", attachment_type=allure.attachment_type.TEXT)
-            except (KeyError, RuntimeError):
-                pass  # 会话结束时 allure 上下文可能已关闭
-```
-
-## request_helper.py 完整代码
-
-用 `save_file` 保存为 `<PROJECT_DIR>/utils/request_helper.py`：
-
-```python
-import json
-import logging
-import os
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
-
-import allure
-import requests
-
-logging.getLogger("urllib3").setLevel(logging.WARNING)
-
-_request_counter = 0
-
-_COMMON_SECRET_KEYS = {
-    "authorization", "token", "accesstoken", "refreshtoken", "idtoken",
-    "apikey", "password", "passwd", "secret", "clientsecret", "cookie",
-    "setcookie", "session", "sessionid",
-}
-
-
-def _key_id(value):
-    return "".join(ch for ch in str(value).lower() if ch.isalnum())
-
-
-def _configured_secret_keys():
-    names = {
-        os.environ.get("API_AUTH_HEADER", ""),
-        os.environ.get("API_AUTH_QUERY_PARAM", ""),
-        os.environ.get("API_AUTH_COOKIE", ""),
-        os.environ.get("API_AUTH_NAME", ""),
-    }
-    return {_key_id(name) for name in names if name}
-
-
-def _is_secret_key(key):
-    normalized = _key_id(key)
-    return normalized in _COMMON_SECRET_KEYS or normalized in _configured_secret_keys()
-
-
-def _known_secret_values():
-    return tuple(
-        value for value in (
-            os.environ.get("API_TOKEN", ""),
-            os.environ.get("API_PASSWORD", ""),
-        ) if value
-    )
-
-
-def _sanitize_text(value):
-    text = str(value)
-    for secret in _known_secret_values():
-        text = text.replace(secret, "***REDACTED***")
-    return text
-
-
-def _sanitize(value, parent_key=""):
-    if parent_key and _is_secret_key(parent_key):
-        return "***REDACTED***"
-    if isinstance(value, dict):
-        return {key: _sanitize(item, key) for key, item in value.items()}
-    if isinstance(value, (list, tuple)):
-        return [_sanitize(item) for item in value]
-    if isinstance(value, bytes):
-        value = value.decode("utf-8", errors="replace")
-    if isinstance(value, str):
-        try:
-            parsed = json.loads(value)
-        except (json.JSONDecodeError, TypeError):
-            return _sanitize_text(value)
-        return _sanitize(parsed)
-    return value
-
-
-def _render(value, limit=500):
-    sanitized = _sanitize(value)
-    if isinstance(sanitized, str):
-        text = sanitized
-    else:
-        text = json.dumps(sanitized, ensure_ascii=False, default=str)
-    return text[:limit]
-
-
-def _sanitize_url(url):
-    try:
-        parts = urlsplit(str(url))
-        hostname = parts.hostname or ""
-        if parts.port:
-            hostname = f"{hostname}:{parts.port}"
-        if parts.username or parts.password:
-            hostname = f"***REDACTED***@{hostname}"
-        query = urlencode([
-            (key, "***REDACTED***" if _is_secret_key(key) else _sanitize_text(value))
-            for key, value in parse_qsl(parts.query, keep_blank_values=True)
-        ])
-        return _sanitize_text(urlunsplit((parts.scheme, hostname, parts.path, query, parts.fragment)))
-    except (TypeError, ValueError):
-        return _sanitize_text(url)
-
-
-def allure_request(method, url, expected="", session=None, **kwargs):
-    global _request_counter
-    _request_counter += 1
-    seq = _request_counter
-
-    headers = kwargs.pop("headers", {})
-    session_headers = dict(getattr(session, "headers", {}) or {})
-    display_headers = _sanitize({**session_headers, **headers})
-    display_url = _sanitize_url(url)
-    display_params = _render(kwargs.get("params", {}))
-    display_body = _render(kwargs.get("json", kwargs.get("data", "")))
-
-    # 日志和 Allure 只接收脱敏副本；原值仅传给 requests。
-    logging.info(f"[请求 #{seq}] {method} {display_url}")
-    logging.debug(f"[请求 #{seq}] Headers: {display_headers}")
-    logging.debug(f"[请求 #{seq}] Params: {display_params}")
-    logging.debug(f"[请求 #{seq}] Body: {display_body}")
-
-    with allure.step(f"请求 #{seq}: {method} {display_url}"):
-        allure.attach(
-            f"方法: {method}\nURL: {display_url}\nHeaders: {_render(display_headers)}\n"
-            f"Params: {display_params}\nBody: {display_body}",
-            name="📤 请求",
-            attachment_type=allure.attachment_type.TEXT,
-        )
-        if expected:
-            allure.attach(expected, name="📋 预期", attachment_type=allure.attachment_type.TEXT)
-
-    client = session or requests
-    resp = client.request(method, url, headers=headers, **kwargs)
-
-    try:
-        response_body = resp.json()
-    except (ValueError, TypeError):
-        response_body = resp.text
-    display_response = _render(response_body)
-
-    # 响应日志和附件同样只使用脱敏副本。
-    logging.info(f"[响应 #{seq}] Status: {resp.status_code}")
-    logging.debug(f"[响应 #{seq}] Body: {display_response}")
-
-    with allure.step(f"响应 #{seq}: {resp.status_code}"):
-        allure.attach(
-            f"状态码: {resp.status_code}\nBody: {display_response}",
-            name="📥 响应",
-            attachment_type=allure.attachment_type.TEXT,
-        )
-
-    return resp
-
-
-class AuthSession:
-    def __init__(self, base_url, token="", auth_location="header",
-                 auth_header="Authorization", auth_query_param="", auth_scheme="Bearer",
-                 auth_mode="", auth_cookie="", username="", password="", session=None):
-        if not base_url.startswith(("http://", "https://")):
-            raise ValueError("API_BASE_URL 必须是完整的 HTTP(S) 地址")
-        self.base_url = base_url.rstrip("/")
-        self.token = token
-        self.session = session or requests.Session()
-
-        mode = (auth_mode or "").strip().lower()
-        if not mode:
-            mode = auth_location if auth_location in {"query", "cookie"} and token else (
-                "bearer" if token and (auth_header or "Authorization").lower() == "authorization"
-                and auth_scheme.lower() == "bearer" else ("header" if token else "none")
-            )
-        if mode not in {"none", "bearer", "header", "query", "cookie", "basic", "dynamic"}:
-            raise ValueError("API_AUTH_MODE 只允许 none/bearer/header/query/cookie/basic/dynamic")
-
-        if mode == "bearer" and token:
-            self.session.headers[auth_header or "Authorization"] = f"Bearer {token}"
-        elif mode == "header" and token:
-            if not auth_header:
-                raise ValueError("Header 认证必须配置 API_AUTH_NAME")
-            credential = f"{auth_scheme} {token}".strip()
-            self.session.headers[auth_header] = credential
-        elif mode == "query" and token:
-            if not auth_query_param:
-                raise ValueError("Query 认证必须配置 API_AUTH_QUERY_PARAM")
-            self.session.params[auth_query_param] = f"{auth_scheme} {token}".strip()
-        elif mode == "cookie" and token:
-            if not auth_cookie:
-                raise ValueError("Cookie 认证必须配置 API_AUTH_NAME")
-            self.session.cookies.set(auth_cookie, token)
-        elif mode == "basic":
-            if username and password:
-                self.session.auth = (username, password)
-        # dynamic 不猜测登录/OAuth；项目专用 fixture 传入已配置的 session。
-
-    def _url(self, path):
-        return f"{self.base_url}/{str(path).lstrip('/')}"
-
-    def get(self, path, expected="", **kwargs):
-        return allure_request("GET", self._url(path), expected=expected, session=self.session, headers=kwargs.pop("headers", {}), **kwargs)
-
-    def post(self, path, expected="", **kwargs):
-        return allure_request("POST", self._url(path), expected=expected, session=self.session, headers=kwargs.pop("headers", {}), **kwargs)
-
-    def put(self, path, expected="", **kwargs):
-        return allure_request("PUT", self._url(path), expected=expected, session=self.session, headers=kwargs.pop("headers", {}), **kwargs)
-
-    def patch(self, path, expected="", **kwargs):
-        return allure_request("PATCH", self._url(path), expected=expected, session=self.session, headers=kwargs.pop("headers", {}), **kwargs)
-
-    def delete(self, path, expected="", **kwargs):
-        return allure_request("DELETE", self._url(path), expected=expected, session=self.session, headers=kwargs.pop("headers", {}), **kwargs)
-```
-
-## report_generator.py
-
-完整代码在 `_templates/report_generator.py`，用 `read_file` 完整读取后保存到 `<PROJECT_DIR>/utils/report_generator.py`。无论当前是否有 Allure CLI 都要交付该回退工具，不用固定行数或文件大小判断完整性。
-
-## pytest.ini
-
-```ini
-[pytest]
-testpaths = tests
-python_files = test_*.py
-python_classes = Test*
-python_functions = test_*
-
-# Allure配置
-addopts = -v --tb=short --alluredir=allure-results
-
-markers =
-    need_auth: 需要认证的测试
-
-# 日志配置 - 控制台输出
-log_cli = true
-log_cli_level = INFO
-log_cli_format = %(asctime)s - %(name)s - %(levelname)s - %(message)s
-log_cli_date_format = %Y-%m-%d %H:%M:%S
-
-# 日志配置 - 文件输出
-log_file = logs/test.log
-log_file_level = INFO
-log_file_format = %(asctime)s - %(name)s - %(levelname)s - %(message)s
-log_file_date_format = %Y-%m-%d %H:%M:%S
-```
-
-## requirements.txt
-
-```
-pytest>=7.4
-allure-pytest>=2.13
-requests>=2.31
-python-dotenv>=1.0
-```
-
-## .env 模板
-
-此处只定义变量结构。Agent 必须在 `.gitignore` 已包含 `.env` 后调用 `configure_env` 写入非敏感值和空凭据槽；不得用 `save_file`/`edit_file` 写 `.env`，也不得读取它。`API_TOKEN` 保留为旧项目兼容别名，同时承载 bearer/header/query/cookie 的静态凭据。
-
-新项目统一把 header/query/cookie 名称写到非敏感变量 `API_AUTH_NAME`；旧项目的 `API_AUTH_HEADER`、`API_AUTH_QUERY_PARAM`、`API_AUTH_COOKIE` 继续兼容。`basic` 使用 `API_USERNAME` + `API_PASSWORD`。动态登录/OAuth 使用 `API_AUTH_MODE=dynamic`，不套用通用猜测：按已确认契约定制 `auth_session` fixture（包括就绪判断），登录后把已配置的 `requests.Session` 传给 `AuthSession(..., auth_mode="dynamic", session=session)`。
-
-```
+# 框架实现契约
+
+本文件只在以下情况读取：
+
+- `scripts/materialize_templates.py` 返回 `TEMPLATE MATERIALIZATION: REVIEW`
+- 已有项目的核心文件需要最小修正
+- 认证方式为 `dynamic`，需要按已确认契约定制 fixture
+
+新项目的标准框架由脚本从 `_templates/project/` 按字节复制，禁止先读取模板正文再手抄。
+
+## 标准框架边界
+
+核心文件为：
+
+- `.gitignore`
+- `conftest.py`
+- `utils/contract_probe.py`
+- `utils/request_helper.py`
+- `utils/__init__.py`
+- `pytest.ini`
+- `requirements.txt`
+
+通用请求必须经过 `allure_request()` 或 `AuthSession`；不得在测试中直接调用 `requests`/`httpx` 或 mock 传输层。GET/POST/PUT/PATCH/DELETE/HEAD/OPTIONS 均由 `AuthSession` 提供。每次 HTTP 调用都传入中文 `expected`。请求 URL、headers、params、body、响应和日志必须经过统一脱敏逻辑，真实凭据只允许在运行时由 `.env` 注入。
+
+## 已有项目的处理
+
+物化脚本不会覆盖内容不同的已有文件，而是输出 `PRESERVED <相对路径>` 和哈希，并以 `TEMPLATE MATERIALIZATION: REVIEW` 结束。此时：
+
+1. 只读取 `PRESERVED` 列出的非敏感文件；永远不读取或搜索 `.env`。
+2. 文件已经满足本节契约时保留原样，不为统一格式而重写。
+3. 只有语法错误，或与已确认的 Base URL、认证、统一请求封装、脱敏、报告单分支直接冲突时，才最小修改相关行。
+4. 不得用模板整文件覆盖用户定制；修正后运行语法检查和相关测试。
+
+`.gitignore` 至少包含独立一行 `.env`。`pytest.ini` 至少配置 `tests/`、`test_*.py`、Allure 结果目录及实际使用的 markers。`need_auth`、`smoke`、`regression` 和 `api_endpoint(method, path)` 必须注册；不删除已有配置。
+
+`utils/contract_probe.py` 只用于写用例前的真实接口探测：它在项目进程内读取 `.env`，通过 `AuthSession` 发请求，并只输出状态码、Content-Type 和脱敏后的字段结构。查询参数和 JSON body 可从项目内 `.probe/*.json` 读取，以避开不同 Shell 的引号差异；文件必须位于项目内且不能是符号链接。Agent 不得读取 `.env`，也不得把凭据放进参数。静态认证未配置时返回 `PROBE: BLOCKED`；动态认证必须先按已确认契约实现 fixture。
+
+## 认证契约
+
+支持以下 `API_AUTH_MODE`：
+
+| 模式 | 非敏感配置 | 本地凭据槽 |
+| --- | --- | --- |
+| `none` | 无 | 无 |
+| `bearer` | `API_AUTH_SCHEME=Bearer` | `API_TOKEN` |
+| `header` | `API_AUTH_NAME`、可选 `API_AUTH_SCHEME` | `API_TOKEN` |
+| `query` | `API_AUTH_NAME`、可选 `API_AUTH_SCHEME` | `API_TOKEN` |
+| `cookie` | `API_AUTH_NAME` | `API_TOKEN` |
+| `basic` | 无 | `API_USERNAME`、`API_PASSWORD` |
+| `dynamic` | 按已确认契约 | 按已确认契约 |
+
+旧项目的 `API_AUTH_HEADER`、`API_AUTH_QUERY_PARAM`、`API_AUTH_COOKIE` 和 `API_AUTH_LOCATION` 继续兼容。新项目统一优先使用 `API_AUTH_MODE` + `API_AUTH_NAME`。
+
+`dynamic` 不猜测登录地址、OAuth 流程或 token 字段。仅按文档或用户确认的契约定制项目级 fixture：运行时读取本地凭据，建立已配置的 `requests.Session`，再传给 `AuthSession(..., auth_mode="dynamic", session=session)`。不得通过 Agent 工具提交真实用户名/密码或读取 token 响应原文。
+
+## `.env` 写入规则
+
+先确保 `.gitignore` 已排除 `.env`，然后通过 `scripts/configure_project_env.py` 写入已确认的非敏感项，并只补当前认证模式需要的凭据槽。下面是字段集合说明，不是要求把所有凭据槽同时写入：
+
+```text
 API_BASE_URL=
 API_AUTH_MODE=none
 API_AUTH_NAME=
-API_TOKEN=
-API_AUTH_LOCATION=header
-API_AUTH_HEADER=
-API_AUTH_QUERY_PARAM=
-API_AUTH_COOKIE=
 API_AUTH_SCHEME=
-API_USERNAME=
-API_PASSWORD=
-REPORT_TITLE=
+
+bearer/header/query/cookie: API_TOKEN=
+basic: API_USERNAME= 与 API_PASSWORD=
+dynamic: 仅已确认的凭据环境变量名
+none: 不创建凭据槽
 ```
 
-## .gitignore
+- 配置脚本在进程内读取并原样保留已有凭据，只输出变量名和处理状态；Agent 不用文件工具读写 `.env`。
+- `PROJECT_KIND=new`：认证需要凭据时，等待用户在本地填写并回复“已配置”。
+- `PROJECT_KIND=existing`：更新用户已经确认的非敏感项，补当前模式需要的槽；已有凭据值只标记 `PRESERVED`，重复键或异常结构必须先处理，绝不回显值。
+- 用户确认后只通过测试行为验证认证，不回显凭据。
 
+## `MEMORY.md` 稳定格式
+
+`MEMORY.md` 固定保存在 `<PROJECT_DIR>/MEMORY.md`，是用户可见交付物。只记录凭据变量名，不记录值；不得使用 Agent 数据库、project-memory、`memory_save` 或 `memory_recall` 保存或恢复本流程数据。
+
+以下章节名和核心表格列保持稳定，实际文件不得保留尖括号占位符：
+
+```text
+## 项目配置
+PROJECT_DIR: <已确认的绝对路径>
+PROJECT_KIND: new | existing
+API_BASE_URL: <已确认的完整 HTTP(S) 地址>
+AUTH_MODE: none | bearer | header | query | cookie | basic | dynamic
+AUTH_NAME: <不适用时留空>
+AUTH_SCHEME: <不适用时留空>
+AUTH_SECRET_ENV: <只写变量名；none 时留空>
+PYTHON: <已验证命令>
+OS_TYPE: Darwin | Linux | Windows
+ALLURE: 有 | 无
+
+## 接口清单
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| <METHOD> | <CONTRACT_PATH> | <接口说明> |
+
+## 差异表
+<没有则写“无差异”>
+
+## 用例计数
+| 方法 | 路径 | 展开后 node 数 |
+| --- | --- | ---: |
+| <METHOD> | <与接口清单一致的 CONTRACT_PATH> | <整数> |
+
+## 结果统计（快速流程）或 ## 最终结果（完整流程）
+| 通过 | <Allure passed 数> |
+| 失败 | <Allure failed + broken 数> |
+| 跳过 | <Allure skipped 数> |
+
+## 修复记录
+<没有则写“无修复”>
 ```
-__pycache__/
-*.pyc
-.env
-allure-results/
-allure-report/
-*.egg-info/
-dist/
-build/
-```
 
-## MEMORY.md 格式
+完整流程还保留 `## 覆盖矩阵`、`## 交付物清单`、`## 遗留问题`。平均用例数因契约范围无法达到 15 时，增加 `## 用例不足说明` 并逐接口写明原因。
 
-固定保存为 `<PROJECT_DIR>/MEMORY.md`，必须用文件写入工具创建或追加，作为用户可见交付物。禁止保存到 Agent 工作区、project-memory 或 skill 目录；`memory_save`/数据库只能额外保存副本，不能替代本文件。
-
-文件开头维护一个稳定的“项目配置”段，至少包含：`PROJECT_KIND`、`API_BASE_URL`、`AUTH_MODE`、`AUTH_NAME`、`AUTH_SCHEME`、`AUTH_SECRET_ENV`、`PYTHON`、`OS_TYPE`、`ALLURE`。只记录凭据变量名，不记录值。
-
-其后按阶段记录：每阶段写日期+做了什么+发现什么+决策什么。阶段三写覆盖矩阵（接口 × 9 维度）和按参数化展开后的用例计数表。
+`## 阶段记录` 只记录阶段产出，不记录任务清单状态。完整流程必须有阶段一至阶段五，快速流程必须有快速阶段一和快速阶段二；每条标题带 `YYYY-MM-DD`，正文包含非空的“完成、发现、决策”。
 
 ## 频率限制
 
-429 → 等 Retry-After 重试。大量 401 → token 被风控，重新获取。
+遇到 429 时按契约与 `Retry-After` 做最小必要等待和重试，不能把成功与限流一概都判为正确。大量 401 先停止请求并请用户检查本地凭据或风控状态，禁止读取 `.env` 排查。

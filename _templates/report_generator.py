@@ -10,14 +10,81 @@ API 测试报告生成器
     python utils/report_generator.py --input allure-results --output allure-report/report.html
 """
 
-import json, os, sys, glob, hashlib, base64, gzip, io, html as _html, shutil
+import json, os, sys, glob, hashlib, base64, gzip, io, html as _html, shutil, re
 from pathlib import Path
+
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+_SECRET_NAME = re.compile(
+    r"(?:authorization|api[_-]?key|access[_-]?token|refresh[_-]?token|token|password|passwd|secret|cookie|session[_-]?id)",
+    re.IGNORECASE,
+)
+_SECRET_VALUE = re.compile(
+    r"(?im)((?:\"?(?:authorization|api[_-]?key|access[_-]?token|refresh[_-]?token|token|password|passwd|secret|cookie|session[_-]?id)\"?)\s*[:=]\s*)([^\r\n,;]+)"
+)
+
+
+def project_path(raw, label, must_exist=False):
+    candidate = Path(raw).expanduser()
+    if not candidate.is_absolute():
+        candidate = PROJECT_ROOT / candidate
+    if candidate.is_symlink():
+        raise ValueError(f"{label} 不能是符号链接")
+    resolved = candidate.resolve()
+    try:
+        resolved.relative_to(PROJECT_ROOT)
+    except ValueError as exc:
+        raise ValueError(f"{label} 必须位于项目目录内") from exc
+    if must_exist and not resolved.exists():
+        raise ValueError(f"{label} 不存在")
+    return resolved
+
+
+def attachment_path(results_dir, source):
+    raw = Path(str(source))
+    if not source or raw.is_absolute() or ".." in raw.parts:
+        raise ValueError("Allure 附件路径非法")
+    candidate = Path(results_dir) / raw
+    if candidate.is_symlink():
+        raise ValueError("Allure 附件不能是符号链接")
+    resolved = candidate.resolve()
+    try:
+        resolved.relative_to(Path(results_dir).resolve())
+    except ValueError as exc:
+        raise ValueError("Allure 附件路径越界") from exc
+    if not resolved.is_file():
+        raise ValueError("Allure 附件不存在")
+    return resolved
+
+
+def redact_text(value):
+    return _SECRET_VALUE.sub(lambda match: match.group(1) + "***REDACTED***", value)
+
+
+def redact_object(value, parent_key=""):
+    """Redact result metadata before it is embedded into the standalone report."""
+    if parent_key and _SECRET_NAME.search(str(parent_key)):
+        return "***REDACTED***"
+    if isinstance(value, dict):
+        redacted = {
+            key: redact_object(item, key)
+            for key, item in value.items()
+        }
+        # Allure parameters store the sensitive name beside a generic `value` key.
+        if _SECRET_NAME.search(str(value.get("name", ""))) and "value" in redacted:
+            redacted["value"] = "***REDACTED***"
+        return redacted
+    if isinstance(value, list):
+        return [redact_object(item) for item in value]
+    if isinstance(value, str):
+        return redact_text(value)
+    return value
 
 
 def read_text(path):
     for enc in ("utf-8", "gbk", "latin-1"):
         try:
-            with open(path, "r", encoding=enc) as f: return f.read()
+            with open(path, "r", encoding=enc) as f: return redact_text(f.read())
         except (UnicodeDecodeError, UnicodeError): continue
         except: return ""
     return ""
@@ -94,7 +161,8 @@ def load_results(d):
     rs = []
     for fp in sorted(glob.glob(os.path.join(d, "*-result.json"))):
         try:
-            with open(fp, "r", encoding="utf-8") as f: rs.append(json.load(f))
+            with open(fp, "r", encoding="utf-8") as f:
+                rs.append(redact_object(json.load(f)))
         except: pass
     return rs
 
@@ -104,7 +172,7 @@ def load_containers(d):
     for fp in sorted(glob.glob(os.path.join(d, "*-container.json"))):
         try:
             with open(fp, "r", encoding="utf-8") as f:
-                c = json.load(f)
+                c = redact_object(json.load(f))
             for child in c.get("children", []):
                 mapping.setdefault(child, []).append(c)
         except: pass
@@ -157,7 +225,7 @@ def test_case(r, results_dir, containers=None, source_map=None):
         for att in step.get("attachments", []):
             src = att.get("source", "")
             mime = att.get("type", "text/plain")
-            _, sz = read_attachment(os.path.join(results_dir, src), mime)
+            _, sz = read_attachment(attachment_path(results_dir, src), mime)
             new_src = short_hash(src) + att_ext(mime)
             source_map[src] = new_src
             atts.append({"uid":short_hash(src),"name":att.get("name",""),"source":new_src,
@@ -195,7 +263,7 @@ def test_case(r, results_dir, containers=None, source_map=None):
     for att in r.get("attachments", []):
         src = att.get("source", "")
         mime = att.get("type", "text/plain")
-        _, sz = read_attachment(os.path.join(results_dir, src), mime)
+        _, sz = read_attachment(attachment_path(results_dir, src), mime)
         new_src = short_hash(src) + att_ext(mime)
         source_map[src] = new_src
         att_obj = {"uid":short_hash(src),"name":att.get("name",""),"source":new_src,
@@ -273,16 +341,20 @@ def timeline_tree(results):
 
 def generate_report(results_dir="allure-results", output="allure-report/report.html", title=None, clean=False):
     _reset_uids()
-    title = title or os.environ.get("REPORT_TITLE", "").strip() or f"{Path.cwd().name} API Test Report"
-    output_path = Path(output)
+    input_dir = project_path(results_dir, "输入结果目录", must_exist=True)
+    output_path = project_path(output, "报告输出路径")
+    report_dir = output_path.parent
+    if report_dir.name != "allure-report" or output_path.name != "report.html":
+        raise ValueError("报告只允许输出到项目内 allure-report/report.html")
+    if report_dir == input_dir or report_dir in input_dir.parents:
+        raise ValueError("报告目录不能包含输入结果目录")
+    title = title or f"{PROJECT_ROOT.name} API Test Report"
     if clean and output_path.parent.exists():
-        report_dir = output_path.parent.resolve()
-        input_dir = Path(results_dir).resolve()
-        if report_dir.name != "allure-report":
-            raise ValueError("--clean 只允许清理名为 allure-report 的输出目录")
-        if input_dir == report_dir or report_dir in input_dir.parents:
-            raise ValueError("报告目录不能包含输入结果目录")
+        if output_path.parent.is_symlink() or output_path.is_symlink():
+            raise ValueError("报告输出不能使用符号链接")
         shutil.rmtree(report_dir)
+    results_dir = str(input_dir)
+    output = str(output_path)
     results = load_results(results_dir)
     if not results:
         print(f"未找到: {results_dir}/*-result.json")
@@ -328,7 +400,9 @@ def generate_report(results_dir="allure-results", output="allure-report/report.h
         for line in read_text(env_file).strip().splitlines():
             if "=" in line:
                 k_env, v_env = line.split("=", 1)
-                env_data.append({"name": k_env.strip(), "values": [v_env.strip()]})
+                key = k_env.strip()
+                value = "***REDACTED***" if _SECRET_NAME.search(key) else v_env.strip()
+                env_data.append({"name": key, "values": [value]})
     D["widgets/environment.json"] = json.dumps(env_data, ensure_ascii=False)
 
     # categories — 读取 categories.json 并匹配用例
@@ -412,7 +486,7 @@ def generate_report(results_dir="allure-results", output="allure-report/report.h
             src = att.get("source", "")
             if src and src in source_map:
                 mime = att.get("type", "text/plain")
-                content, _ = read_attachment(os.path.join(results_dir, src), mime)
+                content, _ = read_attachment(attachment_path(results_dir, src), mime)
                 if content:
                     D[f"data/attachments/{source_map[src]}"] = content
 
@@ -869,7 +943,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="\u751F\u6210\u6D4B\u8BD5\u62A5\u544A")
     parser.add_argument("--input", default="allure-results", help="allure-results \u76EE\u5F55")
     parser.add_argument("--output", default="allure-report/report.html", help="\u8F93\u51FA HTML")
-    parser.add_argument("--title", default=None, help="\u62A5\u544A\u6807\u9898\uff08\u9ED8\u8BA4\u8BFB\u53D6 REPORT_TITLE \u6216\u9879\u76EE\u76EE\u5F55\u540D\uff09")
+    parser.add_argument("--title", default=None, help="\u62A5\u544A\u6807\u9898\uff08\u9ED8\u8BA4\u4F7F\u7528\u9879\u76EE\u76EE\u5F55\u540D\uff09")
     parser.add_argument("--clean", action="store_true", help="\u751F\u6210\u524D\u6E05\u7406\u65E7\u62A5\u544A\u76EE\u5F55")
     args = parser.parse_args()
     generate_report(args.input, args.output, title=args.title, clean=args.clean)

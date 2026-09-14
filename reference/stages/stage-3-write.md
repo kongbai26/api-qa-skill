@@ -1,8 +1,8 @@
 # 阶段三：写用例
 
-> **⛔ 本阶段需要额外读取：reference/test-design.md**
+> **⛔ reference 按步骤读取：①读取 `reference/test-design.md`。禁止在进入本阶段前预读。**
 
-> **MEMORY 文件边界**：本阶段所有 `MEMORY.md` 均指 `<PROJECT_DIR>/MEMORY.md`，必须用文件写入工具追加，供用户查看；Agent 工作区记忆、数据库或 `memory_save` 不能替代该文件。
+> **MEMORY 文件边界**：本阶段所有 `MEMORY.md` 均指 `<PROJECT_DIR>/MEMORY.md`，必须用文件写入工具追加，供用户查看；不得使用 Agent 工作区记忆、数据库、`memory_save` 或 `memory_recall` 保存或恢复本流程数据。
 
 ## 目标
 
@@ -13,11 +13,17 @@
 ```
 ⬜ 1. 按 9 维度编写测试用例（GET ≥8，POST ≥15）
 ⬜ 2. 运行 pytest --collect-only -q 自检用例数
-⬜ 3. 数量不足则补充
+⬜ 3. 核对数量并按需补充（已达标则确认无需补充）
 ⬜ 4. 更新 `<PROJECT_DIR>/MEMORY.md` 覆盖矩阵
 ```
 
-**执行规则**：每完成一项立即将 `⬜` 改为 `✅`，全部打勾才能进入阶段四。
+**执行规则**：进入本阶段时按上述 4 项建立同一份任务清单；`task_add` 可用时必须在步骤①前逐项调用并保存 `task_ref`，不能只在计划中复述。每完成一项并取得可核验结果后，立即通过 `task_update`（不可用时更新文本清单）将对应 `⬜` 改为 `✅`；步骤③在 collection 证明数量已达标时也视为完成，不标记为 `skipped`。4 项全部打勾并经 `task_tree` 复核后才能进入阶段四。
+
+开始步骤①前，先完整读取测试设计规范；如有分页，必须读到 `has_more=false`：
+
+```text
+read_file(path="<SKILL_DIR>/reference/test-design.md")
+```
 
 ## 规则（详见 reference/test-design.md）
 
@@ -27,24 +33,28 @@
 - **POST ≥15 条**：正向 + 字段 + 认证（仅认证 API）+ 缺必填(每个字段各缺一次) + 空值 + 边界(max/max+1) + 业务规则 + 安全 + 格式
 - 一个有 5 必填 + 3 约束的 POST 接口约 25 条，只有 5-8 条说明维度被跳过
 - API 明确无需认证时，禁止臆造 401/403 用例；将认证维度替换为该接口的核心数据完整性或业务规则验证
+- 每个 `test_` 函数必须有一个 `@pytest.mark.api_endpoint(method="<METHOD>", path="<CONTRACT_PATH>")` 标记，并至少调用一次统一 HTTP 请求封装；最终审计按该标记的 pytest 实际 node 数核对 MEMORY，不允许把同一接口的用例虚报给其他接口
+- 动态认证 API：先写一个使用已确认项目专用 fixture 的最小真实用例，单独运行并记录状态码/脱敏结构；通过后才扩展该接口的其他覆盖维度
 
 ## 写完自检
 
 ```
-shell_exec(command="<ENTER_PROJECT> <PYTHON> -m pytest tests/ --collect-only -q")
+shell_exec(command="<ENTER_PROJECT> <PYTHON_CMD> -m pytest tests/ --collect-only -q")
 ```
+
+如果 collection 命令能力不可用或被拒绝，不重试、不估算数量，也不进入阶段四。保留阶段二已预置的当前 OS 脚本，保持②-④为 `⬜`，给出脚本绝对路径及手动命令（Darwin/Linux：`cd "<PROJECT_DIR>" && chmod +x run.sh && ./run.sh`；Windows：`cd /d "<PROJECT_DIR>" && call run.bat`），请用户自行执行；不得声称用例计数、报告或审计已通过。
 
 根据最终 collection 输出建立“方法 + 路径 + 展开后 node 数”表：
 
 1. 每个参数化实例按一个 node 计数，不按函数定义数估算
 2. 表内各接口 node 数之和必须等于 pytest 输出的 collected 总数；不相等先修正映射，禁止凭估算交付
 3. 逐接口检查 GET ≥8、POST ≥15；不足则补齐
-4. 再检查所有接口平均数是否达到 15-20 的总体目标；若因契约范围客观无法达到，在 MEMORY 逐接口写明理由，不得静默略过
+4. 再检查所有接口平均数是否达到 15-20 的总体目标；若因契约范围客观无法达到，在 MEMORY 的 `## 用例不足说明` 逐接口写明理由，不得静默略过
 
 ## 产出
 
-📝 `<PROJECT_DIR>/MEMORY.md`：每个文件的用例数 + 按接口展开后的计数表 + 覆盖矩阵。**必须更新该项目文件，追加本阶段产出。**
+📝 `<PROJECT_DIR>/MEMORY.md`：在 `## 用例计数` 使用固定前三列“方法 | 路径 | 展开后 node 数”，路径必须与 `## 接口清单` 一致；同时追加每个文件的用例数和 `## 覆盖矩阵`。在 `## 阶段记录` 追加 `### 阶段三 - YYYY-MM-DD`，非空记录“完成、发现、决策”。**必须更新该项目文件，追加本阶段产出。**
 
-## 双重保存
+## 保存边界
 
-先写 `<PROJECT_DIR>/MEMORY.md`；数据库可用时再额外写数据库。数据库或 Agent 记忆不可替代项目文件。
+只写 `<PROJECT_DIR>/MEMORY.md`。不得把本流程的项目配置或阶段产出额外写入 Agent 数据库、project-memory 或会话工作区。

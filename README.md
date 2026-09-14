@@ -27,11 +27,12 @@ Most testing agents fall into common traps: hallucinating API responses, writing
 * 📊 **Single-Entry Conditional Reporting**:
   * **When Allure works**: Generates only the official static entry `allure-report/index.html`.
   * **When Allure is unavailable**: Uses the built-in Python generator to create only `allure-report/report.html`.
-  * The two report entries are mutually exclusive, and no server or browser is opened automatically.
+  * The two report entries are mutually exclusive. The runner keeps the report mode verified when the project was generated, and no server or browser is opened automatically.
+  * Delivery validation parses report assets or embedded data and reconciles their statistics with the raw results instead of relying on fixed line-count or file-size thresholds.
 * 📐 **9-Dimension Industrial Test Coverage**: Functional happy paths, data integrity, authentication/authorization, parameter validation, boundary values, business rules, security/injection defense, CRUD chaining, and unified error format.
 * 🔄 **Self-Healing Debug Loop (Up to 5 Rounds)**：Automatically runs the test suite, parses tracebacks, fixes test-code issues, and records confirmed API discrepancies without classifying failures by retry count alone.
-* ⚡ **Local & Cloud Model Friendly**: Thanks to progressive context disclosure and deterministic code templates, the skill minimizes prompt bloat and cognitive overhead. It delivers reliable, robust results not only on frontier cloud models (Claude 3.5/3.7, GPT-4o, Gemini 2.0/2.5) but also on local open-source models (e.g., Qwen 2.5-Coder, DeepSeek-Coder, Llama 3 via Ollama / vLLM / LM Studio) without hallucinations or dropped instructions.
-* 📦 **Turnkey Cross-Platform Execution**: Detects the current OS and delivers one matching runner: `run.sh` on macOS/Linux or `run.bat` on Windows.
+* ⚡ **Local & Cloud Model Friendly**: Stage instructions are loaded progressively, while deterministic project assets are copied by a helper without injecting their source into the model context. This removes the largest avoidable prompt payload for small local models.
+* 📦 **Turnkey Cross-Platform Execution**: Detects the current OS and prepositions one matching runner: `run.sh` on macOS/Linux or `run.bat` on Windows. The runner is pinned to the confirmed report mode, executed before final delivery, and its latest outputs are audited. If command execution is blocked, the runner remains available for the user without a false completion claim.
 
 ---
 
@@ -44,12 +45,19 @@ api-qa-skill/
 ├── README_zh.md                 # Chinese documentation
 ├── LICENSE                      # Apache-2.0 License
 ├── _templates/
+│   ├── project/                 # Core pytest project assets copied without prompt injection
+│   ├── run.sh                   # macOS/Linux runner asset
+│   ├── run.bat                  # Windows runner asset (ASCII)
 │   └── report_generator.py      # Built-in standalone HTML fallback generator
+├── scripts/
+│   ├── configure_project_env.py # Credential-preserving project-local .env merger
+│   ├── materialize_templates.py # Branch-aware, non-overwriting asset materializer
+│   └── validate_delivery.py     # Final semantic delivery audit
 └── reference/
-    ├── implementation.md        # Core framework code templates (conftest.py, request_helper.py, etc.)
+    ├── implementation.md        # Read only for existing-file conflicts or dynamic auth
     ├── test-design.md           # 9-dimension test design specifications & contract assertion guide
     ├── test-doc.md              # Standardized test case specification format (docs/test_cases.md)
-    ├── run-scripts.md           # Cross-platform runner script templates (run.sh / run.bat)
+    ├── run-scripts.md           # Read only for runner conflicts or command-blocked prepositioning
     └── stages/                  # Progressive workflow stages (prevents LLM context overflow)
         ├── stage-full-setup.md  # Full Workflow Stage 1: Information Gathering & Environment Audit
         ├── stage-2-setup.md     # Full Workflow Stage 2: Framework Setup & Endpoint Probing
@@ -64,7 +72,7 @@ api-qa-skill/
 
 ## 🛠️ Installation & Universal Usage
 
-`api-qa-skill` is engineered as a **universal, model-agnostic Agent engineering specification**. Whether you use terminal coding agents, AI-powered IDEs, autonomous extensions, or web-based LLMs, you can seamlessly integrate it into your workflow.
+`api-qa-skill` is a **host-neutral, model-agnostic Agent workflow**. It works on any host that can load the complete skill directory and provide equivalent file read/write, recursive file listing, shell/Python execution, and HTTP access. Task tracking is optional because the workflow has a text-checklist fallback. A chat-only host without filesystem or execution access can review the specification, but cannot claim to have generated or audited a runnable project.
 
 ### 1. Quick Clone
 Clone this repository into your local environment:
@@ -78,23 +86,19 @@ Paste the following prompt into any AI Agent conversation, replacing the `[...]`
 ```text
 Please read and strictly follow the engineering protocol in `./api-qa-skill/SKILL.md` to design and implement a production-ready API automated test suite:
 
-- Target Directory: [Optional; defaults to ~/Desktop/<service>-api-qa-skill]
+- Target Directory: [Optional; if omitted, the Agent must ask. Reply "default" to use ~/Desktop/<service>-api-qa-skill]
 - API Base URL: [Your API Base URL, e.g., https://api.example.com]
 - API Specification: [Paste your Swagger JSON / OpenAPI YAML / Markdown / endpoint list]
-- Authentication: [Specify: Bearer Token / API Key / Login credentials; or write "None" if unauthenticated]
+- Authentication: [Specify the authentication method and secret environment-variable names only; never paste tokens, API keys, passwords, or cookies. Write "None" if unauthenticated]
 ```
 
 ---
 
-### 3. Integration Matrix Across AI Ecosystems
+### 3. Host Capability Mapping
 
-| Ecosystem | Supported Platforms | Recommended Integration |
-| :--- | :--- | :--- |
-| **Terminal Coding Agents** | **Claude Code**<br>**Google Antigravity (AGY)**<br>**Aider / Goose / OpenCode** | Clone into workspace root or global skills directory:<br>• **Antigravity**: `git clone https://github.com/kongbai26/api-qa-skill.git ~/.gemini/antigravity-cli/skills/api-qa-skill`<br>• **Claude Code**: Add `Refer to ./api-qa-skill/SKILL.md for API test generation.` in `CLAUDE.md`<br>• **Aider / Goose**: Run with `--message "Read ./api-qa-skill/SKILL.md..."` |
-| **AI-Native IDEs** | **Cursor**<br>**Windsurf**<br>**GitHub Copilot (VS Code)** | • **Cursor**: Reference `@api-qa-skill/SKILL.md` in `.cursor/rules/api-qa.mdc` or directly in the Composer<br>• **Windsurf**: Add rule in `.windsurfrules`<br>• **Copilot**: Mention `@workspace` and reference `./api-qa-skill/SKILL.md` |
-| **Autonomous Agent Extensions** | **Cline / Roo Code**<br>**Continue.dev** | Place in workspace. Add to Custom Instructions / System Rules:<br>`"When generating or maintaining API tests, strictly follow ./api-qa-skill/SKILL.md."` |
-| **Web & API LLMs** | **ChatGPT / Claude.ai**<br>**DeepSeek / Gemini / Kimi** | Upload `SKILL.md` as an attachment or system prompt. Provide your API documentation, and the model will act as an expert QA architect generating full test suites and case specifications. |
-| **Manual QA Scaffolding** | **QA Engineers / CI/CD Pipelines** | Zero Agent required. Reuse `_templates/report_generator.py` and `reference/implementation.md` as an out-of-the-box template for standard pytest + Allure automation projects. |
+Do not rewrite the workflow for individual products. Bind the host's native tools to these capabilities once: locate the loaded skill directory, read and write files, enumerate a project recursively, run shell/Python commands, and make real HTTP calls. If task-list tools exist, use them; otherwise maintain the same checklist in the conversation. Keep the **entire directory** available because `SKILL.md` progressively loads stage references and invokes scripts/templates by path; uploading only `SKILL.md` is insufficient for execution.
+
+The workflow preserves the original hard gates: the user must explicitly select the workflow, confirm the project directory, authorize or specify environment detection, and resolve the API base URL/authentication before project work begins. Host workspace metadata, CWD, and tool defaults never count as project-directory confirmation. Full workflow execution also waits for explicit plan approval, and completion remains blocked until every stage item is checked and the delivery audit passes.
 
 ---
 
@@ -120,10 +124,10 @@ Upon completion, the Agent outputs a fully standalone, production-ready test rep
 │   └── test_*.py            # Clean, modular pytest test cases with Allure decorators
 ├── utils/
 │   ├── request_helper.py    # Request wrapper with step logging & configurable auth injection
-│   └── report_generator.py  # Always-delivered standalone HTML fallback generator
+│   └── report_generator.py  # Delivered only when the Allure CLI is unavailable
 ├── conftest.py              # Global fixtures (base_url, auth_session, cleanup hooks)
 ├── pytest.ini               # Pytest markers and Allure configurations
-├── requirements.txt         # Minimal, pinned test dependencies
+├── requirements.txt         # Minimal compatible test dependencies
 ├── .env                     # API base URL and authentication settings/secrets (git-ignored)
 ├── run.sh or run.bat        # Exactly one runner matching the detected OS
 ├── MEMORY.md                # Required user-visible project record; never replaced by agent memory

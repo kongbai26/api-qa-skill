@@ -24,11 +24,12 @@
 提交前至少运行：
 
 ```bash
-python -m py_compile _templates/report_generator.py
+python -m py_compile scripts/materialize_templates.py scripts/validate_delivery.py _templates/report_generator.py _templates/project/conftest.py _templates/project/utils/request_helper.py
+bash -n _templates/run.sh
 git diff --check
 ```
 
-同时确认 `SKILL.md` frontmatter 可被目标 Agent 客户端识别，Markdown 链接有效，`run.bat` 保持纯 ASCII，且仓库中没有真实凭据或本机绝对路径。
+同时用临时目录验证 `materialize_templates.py` 的 core/report/runner 三个分支、已有文件不覆盖及另一平台脚本拦截；确认 `SKILL.md` frontmatter 可被目标 Agent 客户端识别，Markdown 链接有效，`run.bat` 保持纯 ASCII，且仓库中没有真实凭据或本机绝对路径。
 
 ## Pull Request
 
