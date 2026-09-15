@@ -53,7 +53,7 @@ shell_exec(command="<ENTER_PROJECT> <PYTHON_CMD> \"<SKILL_DIR>/scripts/configure
 
 禁止用 Agent 文件工具写、读或搜索 `.env`。需要认证时由用户在本地填写凭据并只回复“已配置”；Agent 等确认后运行测试验证，不回显凭据。追加已有项目会更新用户已确认的非敏感配置并补当前模式需要的凭据槽，已有凭据只会标记 `PRESERVED`。
 
-先按前置阶段已实际验证的 `ALLURE` 分支处理：
+先按前置阶段已实际验证的 `ALLURE` 分支处理。物化器会独立实际复核 `allure --version`；若报告分支不一致，必须返回 `ENV_LOCK` 重新锁定，不能把它当作普通重试或静默切换：
 
 - `ALLURE=有`：不执行报告模板物化，不读取、不复制、不验证 `utils/report_generator.py`；已有项目如原本存在该文件则保留不动
 - `ALLURE=无`：不读取模板正文，执行：
@@ -220,7 +220,7 @@ shell_exec(command="<ENTER_PROJECT> <PYTHON_CMD> \"<SKILL_DIR>/scripts/validate_
 ```
 
 - `REPORT ARTIFACT AUDIT: PASS`：继续当前分支
-- `REPORT ARTIFACT AUDIT: BLOCKED`：保持列出的既有报告不动，登记“等待用户”并询问如何处理；用户明确处理前禁止生成新报告、禁止结束交付
+- `REPORT ARTIFACT AUDIT: BLOCKED`：保持列出的既有报告不动；若原因是报告分支与实际 Allure 检测不一致，返回 `ENV_LOCK` 重新锁定。其他冲突登记“等待用户”并询问如何处理；用户明确处理前禁止生成新报告、禁止结束交付
 
 **如果有 allure（ALLURE=有）**：
 ```
@@ -254,7 +254,7 @@ shell_exec(command="<ENTER_PROJECT> <PYTHON_CMD> -c \"from pathlib import Path; 
 
 ## ⑦ 交付前复核并实跑运行脚本
 
-脚本已在步骤①预置。交付前再次调用物化脚本做确定性比对；它不会覆盖内容不同的已有脚本。`<REPORT_MODE>` 在 `ALLURE=有` 时替换为 `official`，否则替换为 `fallback`：
+脚本已在步骤①预置。交付前再次调用物化脚本做确定性比对；它不会覆盖内容不同的已有脚本，并会独立实际复核 `allure --version`。若报告分支不一致，返回 `ENV_LOCK` 重新锁定，禁止把失败当作普通重试。`<REPORT_MODE>` 在 `ALLURE=有` 时替换为 `official`，否则替换为 `fallback`：
 
 ```text
 shell_exec(command="<ENTER_PROJECT> <PYTHON_CMD> \"<SKILL_DIR>/scripts/materialize_templates.py\" --project \"<PROJECT_DIR>\" --component runner --project-kind <PROJECT_KIND> --os <OS_TYPE> --python-command \"<PYTHON>\" --report <REPORT_MODE>")
@@ -274,7 +274,7 @@ shell_exec(command="<ENTER_PROJECT> <PYTHON_CMD> \"<SKILL_DIR>/scripts/materiali
 - Darwin/Linux：`shell_exec(command="<ENTER_PROJECT> ./run.sh")`
 - Windows：`shell_exec(command="<ENTER_PROJECT> call run.bat")`
 
-脚本必须重新执行依赖检查、pytest 和已锁定报告分支，且产出最新的 `allure-results` 与唯一报告入口。之前全部通过时，此次脚本也必须返回 0；如有已确认并记录的 API 契约缺陷，允许 pytest 返回非 0，但脚本必须完成报告生成，且结果须与 MEMORY 记录一致。其他脚本错误按原因最小修复后最多重试 2 次。
+脚本只重新执行 pytest 和已锁定报告分支；依赖安装仍由步骤②的独立流程负责。它必须产出最新的 `allure-results` 与唯一报告入口。之前全部通过时，此次脚本也必须返回 0；如有已确认并记录的 API 契约缺陷，允许 pytest 返回非 0，但脚本必须完成报告生成，且结果须与 MEMORY 记录一致。其他脚本错误按原因最小修复后最多重试 2 次。
 
 如执行测试或脚本的命令能力不可用或被拒绝，必须保留已经预置的脚本，保持尚未执行及其后清单项为 `⬜`，登记“等待用户”，并给出项目内手动命令：Darwin/Linux 为 `cd "<PROJECT_DIR>" && chmod +x run.sh && ./run.sh`，Windows 为 `cd /d "<PROJECT_DIR>" && call run.bat`。这表示脚本已交付但测试、报告、实跑与最终审计中的未执行部分仍待完成；禁止说“用户没有要求脚本”，也禁止输出完成结束语。
 

@@ -25,11 +25,9 @@ if not defined PYTHON (
 echo Using: %PYTHON%
 "%PYTHON%" --version
 
-"%PYTHON%" -m pip install -q -r requirements.txt
-if errorlevel 1 (
-    echo ERROR: dependency installation failed.
-    exit /b 1
-)
+call :verify_report_mode
+if errorlevel 1 exit /b 1
+
 "%PYTHON%" -m pytest tests/ -v --tb=short --alluredir=allure-results --clean-alluredir
 set TEST_EXIT_CODE=%ERRORLEVEL%
 
@@ -40,22 +38,15 @@ if not exist "allure-results\*-result.json" (
     exit /b 1
 )
 
+call :verify_report_mode
+if errorlevel 1 exit /b 1
+
 if /I "%REPORT_MODE%"=="official" goto report_official
 if /I "%REPORT_MODE%"=="fallback" goto report_fallback
 echo ERROR: invalid report mode: %REPORT_MODE%
 exit /b 1
 
 :report_official
-where allure >nul 2>&1
-if errorlevel 1 (
-    echo ERROR: report mode is official but allure is unavailable.
-    exit /b 1
-)
-allure --version >nul 2>&1
-if errorlevel 1 (
-    echo ERROR: allure is not executable.
-    exit /b 1
-)
 allure generate allure-results -o allure-report --clean
 if errorlevel 1 exit /b 1
 if not exist "allure-report\index.html" exit /b 1
@@ -79,3 +70,30 @@ echo Report: allure-report\report.html
 :report_done
 
 exit /b %TEST_EXIT_CODE%
+
+:verify_report_mode
+if /I "%REPORT_MODE%"=="official" goto verify_official
+if /I "%REPORT_MODE%"=="fallback" goto verify_fallback
+echo ERROR: invalid report mode: %REPORT_MODE%
+exit /b 1
+
+:verify_official
+where allure >nul 2>&1
+if errorlevel 1 (
+    echo ERROR: report mode is official but allure is unavailable.
+    exit /b 1
+)
+allure --version >nul 2>&1
+if errorlevel 1 (
+    echo ERROR: allure is not executable.
+    exit /b 1
+)
+exit /b 0
+
+:verify_fallback
+where allure >nul 2>&1
+if errorlevel 1 exit /b 0
+allure --version >nul 2>&1
+if errorlevel 1 exit /b 0
+echo ERROR: report mode fallback conflicts with available allure. Re-materialize the runner with official mode.
+exit /b 1

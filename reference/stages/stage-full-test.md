@@ -11,7 +11,7 @@
 ## 步骤清单（执行时必须逐项打勾，跳过禁止）
 
 ```
-⬜ 1. 跑 pytest（传 --alluredir=allure-results）
+⬜ 1. 跑 pytest（传 --alluredir=allure-results --clean-alluredir）
 ⬜ 2. 生成单一报告
 ⬜ 3. 分析测试结果（有失败则分类，无失败则确认）
 ⬜ 4. 按分析结果修复或记录（无失败则确认无需修复）
@@ -62,7 +62,7 @@ shell_exec(command="<ENTER_PROJECT> <PYTHON_CMD> -m pytest tests/ -v --tb=short 
 shell_exec(command="<ENTER_PROJECT> <PYTHON_CMD> \"<SKILL_DIR>/scripts/validate_delivery.py\" --project \"<PROJECT_DIR>\" --report <REPORT_MODE> --report-artifacts-only")
 ```
 
-扫描为 `PASS` 才能继续；扫描为 `BLOCKED` 时保持列出的既有报告不动，登记“等待用户”并询问如何处理，用户明确处理前禁止生成新报告或进入后续步骤。
+扫描为 `PASS` 才能继续；该扫描也会实际复核 `allure --version` 与已锁定分支。扫描为 `BLOCKED` 时保持列出的既有报告不动；若原因是报告分支不一致，返回 `ENV_LOCK` 重新锁定，不能直接执行 fallback 或官方命令。其他冲突登记“等待用户”并询问如何处理，用户明确处理前禁止生成新报告或进入后续步骤。
 
 **如果有 allure（ALLURE=有）** → 只生成官方 Allure 报告，入口为 `allure-report/index.html`：
 ```

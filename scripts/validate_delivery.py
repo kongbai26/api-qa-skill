@@ -17,6 +17,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -131,6 +132,24 @@ def parse_args() -> argparse.Namespace:
         if missing:
             parser.error("完整交付审计缺少参数: " + ", ".join(missing))
     return args
+
+
+def detect_report_mode() -> str:
+    """Return the currently executable report branch without changing it."""
+    allure = shutil.which("allure")
+    if not allure:
+        return "fallback"
+    try:
+        completed = subprocess.run(
+            [allure, "--version"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=15,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return "fallback"
+    return "official" if completed.returncode == 0 else "fallback"
 
 
 def relative(project: Path, path: Path) -> str:
@@ -641,7 +660,9 @@ def static_string(node: ast.AST | None) -> str | None:
     return None
 
 
-def static_path_pattern(node: ast.AST | None) -> str | None:
+def static_path_pattern(
+    node: ast.AST | None, string_constants: dict[str, str] | None = None
+) -> str | None:
     """Render a request path expression without evaluating runtime values."""
     if node is None:
         return None
@@ -653,18 +674,27 @@ def static_path_pattern(node: ast.AST | None) -> str | None:
         for value in node.values:
             if isinstance(value, ast.Constant) and isinstance(value.value, str):
                 parts.append(value.value)
+            elif (
+                isinstance(value, ast.FormattedValue)
+                and isinstance(value.value, ast.Name)
+                and string_constants
+                and value.value.id in string_constants
+            ):
+                parts.append(string_constants[value.value.id])
             elif isinstance(value, ast.FormattedValue):
                 parts.append("{}")
             else:
                 return None
         return "".join(parts)
     if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
-        left = static_path_pattern(node.left)
-        right = static_path_pattern(node.right)
+        left = static_path_pattern(node.left, string_constants)
+        right = static_path_pattern(node.right, string_constants)
         if left is None or right is None:
             return None
         return left + right
-    if isinstance(node, (ast.Name, ast.Attribute, ast.Subscript)):
+    if isinstance(node, ast.Name):
+        return (string_constants or {}).get(node.id, "{}")
+    if isinstance(node, (ast.Attribute, ast.Subscript)):
         return "{}"
     return None
 
@@ -768,10 +798,13 @@ def static_request_endpoint(
     *,
     is_allure_request: bool,
     method: str,
+    string_constants: dict[str, str] | None = None,
 ) -> tuple[str, str] | None:
     if is_allure_request:
         request_method = static_string(call_argument(call, 0, "method"))
-        raw_path = static_path_pattern(call_argument(call, 1, "url", "path"))
+        raw_path = static_path_pattern(
+            call_argument(call, 1, "url", "path"), string_constants
+        )
         if not request_method or request_method.upper() not in HTTP_METHOD_SET or not raw_path:
             return None
         parsed = urlsplit(raw_path)
@@ -780,7 +813,9 @@ def static_request_endpoint(
             observed_path = observed_path[2:]
         return request_method.upper(), observed_path
 
-    raw_path = static_path_pattern(call_argument(call, 0, "path", "url"))
+    raw_path = static_path_pattern(
+        call_argument(call, 0, "path", "url"), string_constants
+    )
     if method.upper() not in HTTP_METHOD_SET or not raw_path:
         return None
     return method.upper(), raw_path.split("?", 1)[0]
@@ -802,6 +837,17 @@ def check_test_semantics(
         request_function_aliases: set[str] = set()
         request_session_names: set[str] = set()
         unified_function_aliases = {"allure_request"}
+        string_constants: dict[str, str] = {}
+        for child in tree.body:
+            if not isinstance(child, (ast.Assign, ast.AnnAssign)):
+                continue
+            literal = static_string(child.value)
+            if literal is None:
+                continue
+            targets = child.targets if isinstance(child, ast.Assign) else [child.target]
+            for target in targets:
+                if isinstance(target, ast.Name):
+                    string_constants[target.id] = literal
         for child in ast.walk(tree):
             if isinstance(child, ast.Import):
                 for alias in child.names:
@@ -911,6 +957,7 @@ def check_test_semantics(
                     call,
                     is_allure_request=is_allure_request,
                     method=method,
+                    string_constants=string_constants,
                 )
                 if marker and observed:
                     observed_method, observed_path = observed
@@ -1389,6 +1436,19 @@ def main() -> int:
         print(f"FAIL: 项目目录不存在: {project}")
         return 1
 
+    detected_report = detect_report_mode()
+    if args.report != detected_report:
+        message = (
+            "报告分支与本机实际 Allure 检测不一致："
+            f"requested={args.report}, detected={detected_report}"
+        )
+        if args.report_artifacts_only:
+            print("REPORT ARTIFACT AUDIT: BLOCKED")
+            print(f"- {message}")
+            print("- 请返回 ENV_LOCK 重新锁定；未删除或覆盖任何报告")
+            return 2
+        errors.append("审计" + message)
+
     if args.report_artifacts_only:
         return print_report_artifact_audit(project, args.report)
 
@@ -1588,7 +1648,11 @@ def main() -> int:
         if runner_text:
             lowered = runner_text.lower()
             normalized = lowered.replace("\\", "/")
-            required_fragments = ["pytest", "--clean-alluredir"]
+            required_fragments = [
+                "pytest",
+                "--alluredir=allure-results",
+                "--clean-alluredir",
+            ]
             required_fragments.extend(
                 ["allure generate", "allure-report/index.html"]
                 if args.report == "official"
@@ -1623,12 +1687,8 @@ def main() -> int:
             configured_python = memory_values.get("PYTHON", "")
             if configured_python and configured_python not in runner_text:
                 errors.append(f"{expected_runner} 未优先使用已确认的 PYTHON={configured_python}")
-            if expected_runner == "run.sh" and 'if ! "$PYTHON" -m pip install' not in runner_text:
-                errors.append("run.sh 未在依赖安装失败时停止")
-            if expected_runner == "run.bat" and not re.search(
-                r"pip install[^\r\n]*\r?\nif errorlevel 1 \(", runner_text, re.IGNORECASE
-            ):
-                errors.append("run.bat 未在依赖安装失败时停止")
+            if re.search(r"\bpip\s+install\b", lowered):
+                errors.append(f"{expected_runner} 不应安装依赖；依赖安装必须在独立流程步骤执行")
             if expected_runner == "run.sh":
                 for shell_name in ("bash", "sh"):
                     try:

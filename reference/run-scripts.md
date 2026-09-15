@@ -15,8 +15,9 @@
 
 - 只交付当前 `OS_TYPE` 对应的一份新脚本；已有项目不删除用户原有的另一平台脚本。
 - 运行时先进入脚本自身目录，不写生成时的绝对 `PROJECT_DIR`。
-- 先安装依赖，安装失败立即退出；再以 `--alluredir=allure-results --clean-alluredir` 跑 pytest。
-- `REPORT_MODE` 在生成时固定为 `official` 或 `fallback`，不得在运行时自动切换。
+- 在清理 `allure-results` 或跑 pytest 前，先复核固定的 `REPORT_MODE` 仍与实际 `allure --version` 能力一致；测试结束、生成报告前再复核一次。冲突时停止并要求重新物化，不运行测试也不切换分支。
+- runner 只以 `--alluredir=allure-results --clean-alluredir` 跑 pytest 并生成所选报告；不得安装或更新依赖。依赖安装始终由独立流程步骤完成。
+- `REPORT_MODE` 在生成时固定为 `official` 或 `fallback`，不得在运行时自动切换。物化器会独立执行 `allure --version`；若模型参数与实际能力不一致会拒绝写入。运行时若 fallback 又检测到可用 Allure，脚本必须报错并要求按 official 重新物化，而不是悄悄生成另一种报告。
 - `official` 只生成并检查 `allure-report/index.html`；`fallback` 只生成并检查 `allure-report/report.html`。
 - 另一个报告入口存在时必须报错；禁止 `allure serve`、`allure open`、`open`、`xdg-open`、`start`。
 - pytest 失败后仍生成报告，脚本最终返回 pytest 的退出码；报告无法生成则立即返回失败。
@@ -33,7 +34,7 @@
 - 文件必须是纯 ASCII；不要加入中文。
 - 使用 `cd /d "%~dp0"`，兼容跨盘符路径。
 - 外部 `PYTHON` 有效时优先使用；否则先尝试已验证命令，再尝试 `python`、`python3`、`py`。
-- 使用 `errorlevel` 检查依赖、测试和报告命令。
+- 使用 `errorlevel` 检查测试和报告命令。
 
 ## 最小修正
 

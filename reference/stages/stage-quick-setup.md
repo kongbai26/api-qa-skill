@@ -70,7 +70,7 @@
 shell_exec(command="<PYTHON_CMD> -c \"import platform,shutil,sys; print('OS:',platform.system()); print('PythonVersion:',sys.version.split()[0]); print('Allure:',shutil.which('allure') or 'NOT_FOUND')\"")
 ```
 
-命令失败则停止并请用户确认 Python 命令。检测出的 OS 与用户指定的目标 OS 不一致时停止并请用户确认，禁止自行选择其中一个。`shutil.which` 只用于定位；随后必须实际执行 `allure --version`，只有返回成功才记录 `ALLURE=有`，否则记录 `ALLURE=无`。
+命令失败则停止并请用户确认 Python 命令。检测出的 OS 与用户指定的目标 OS 不一致时停止并请用户确认，禁止自行选择其中一个。`shutil.which` 只用于定位；随后必须实际执行 `allure --version`，只有返回成功才记录 `ALLURE=有`，否则记录 `ALLURE=无`。**工具执行能力不可用或被拒绝不等于 Allure 不可用**：这种情况不得记录 `ALLURE=无`，必须停在 `ENV_LOCK` 并请用户允许执行或在本机提供结果。
 
 | 变量 | 规则 |
 |------|------|

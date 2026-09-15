@@ -50,7 +50,7 @@ pytest 跑完后，先告诉用户测试结果摘要（通过/失败/跳过数�
 shell_exec(command="<ENTER_PROJECT> <PYTHON_CMD> \"<SKILL_DIR>/scripts/validate_delivery.py\" --project \"<PROJECT_DIR>\" --report <REPORT_MODE> --report-artifacts-only")
 ```
 
-扫描为 `PASS` 才能继续；扫描为 `BLOCKED` 时保持列出的既有报告不动，登记“等待用户”并询问如何处理，用户明确处理前禁止重建报告或完成交付。
+扫描为 `PASS` 才能继续；该扫描也会实际复核 `allure --version` 与已锁定分支。扫描为 `BLOCKED` 时保持列出的既有报告不动；若原因是报告分支不一致，返回 `ENV_LOCK` 重新锁定，不能直接执行 fallback 或官方命令。其他冲突登记“等待用户”并询问如何处理，用户明确处理前禁止重建报告或完成交付。
 
 **ALLURE=有** → 只生成官方 Allure 报告：
 ```
@@ -96,7 +96,7 @@ shell_exec(command="<ENTER_PROJECT> <PYTHON_CMD> -c \"from pathlib import Path; 
 
 ## ④ 交付前复核、验收并实跑当前 OS 运行脚本
 
-脚本已在阶段二预置。交付前再次调用物化脚本做确定性比对；它不会覆盖内容不同的已有脚本。`<REPORT_MODE>` 在 `ALLURE=有` 时替换为 `official`，否则替换为 `fallback`：
+脚本已在阶段二预置。交付前再次调用物化脚本做确定性比对；它不会覆盖内容不同的已有脚本，并会独立实际复核 `allure --version`。若报告分支不一致，返回 `ENV_LOCK` 重新锁定，禁止把失败当作普通重试。`<REPORT_MODE>` 在 `ALLURE=有` 时替换为 `official`，否则替换为 `fallback`：
 ```
 shell_exec(command="<ENTER_PROJECT> <PYTHON_CMD> \"<SKILL_DIR>/scripts/materialize_templates.py\" --project \"<PROJECT_DIR>\" --component runner --project-kind <PROJECT_KIND> --os <OS_TYPE> --python-command \"<PYTHON>\" --report <REPORT_MODE>")
 ```
@@ -114,7 +114,7 @@ shell_exec(command="<ENTER_PROJECT> <PYTHON_CMD> \"<SKILL_DIR>/scripts/materiali
 - Darwin/Linux：`shell_exec(command="<ENTER_PROJECT> ./run.sh")`
 - Windows：`shell_exec(command="<ENTER_PROJECT> call run.bat")`
 
-脚本会重新运行依赖检查、pytest 和已锁定的唯一报告分支；其产出的 `allure-results` 和报告才是最终审计输入。之前全部通过时，脚本必须返回 0；已记录的 API 契约缺陷导致 pytest 非 0 时，脚本仍必须完成报告生成，且最终结果必须与 MEMORY 一致。其他脚本错误最小修复后最多重试 2 次。
+脚本只会重新运行 pytest 和已锁定的唯一报告分支；依赖安装仍由阶段二④的独立步骤负责。其产出的 `allure-results` 和报告才是最终审计输入。之前全部通过时，脚本必须返回 0；已记录的 API 契约缺陷导致 pytest 非 0 时，脚本仍必须完成报告生成，且最终结果必须与 MEMORY 一致。其他脚本错误最小修复后最多重试 2 次。
 
 如执行测试或脚本的命令能力不可用或被拒绝，必须保留已经预置的脚本，保持尚未执行及其后清单项为 `⬜`，登记“等待用户”，并给出项目内手动命令：Darwin/Linux 为 `cd "<PROJECT_DIR>" && chmod +x run.sh && ./run.sh`，Windows 为 `cd /d "<PROJECT_DIR>" && call run.bat`。这表示脚本已交付但测试、报告、实跑与最终审计中的未执行部分仍待完成；禁止说“用户没有要求脚本”，也禁止输出完成结束语。
 

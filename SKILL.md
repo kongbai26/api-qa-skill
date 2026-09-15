@@ -117,12 +117,12 @@ pytest + Allure 框架。**所有测试文件必须位于 `<PROJECT_DIR>/tests/`
 12. **禁止只说不做** — 每个阶段必须调用工具执行，不能只输出文本或自我分析来代替实际执行。所有阶段全部完成后才能停止调用工具
 13. **禁止循环执行相同命令** — 如果连续 2 次执行相同命令得到相同结果，必须停止并检查是否需要换方法或结束任务
 14. **禁止自动打开或降级报告** — 只生成静态 HTML 报告，禁止用 `TEST_REPORT.md` 等 Markdown 代替；禁止执行 `allure serve`、`allure open`、`open allure-report/` 等任何会启动服务或打开浏览器的命令。生成后只检查所选入口，报告由用户手动查看
-15. **禁止未实跑却声称完成或双脚本交付** — `OS_TYPE`、`PYTHON` 和 `ALLURE` 锁定后，先预置当前脚本：Darwin/Linux 为 `run.sh`，Windows 为 `run.bat`；再由 agent 直接执行 pytest 和当前报告命令。测试与报告稳定后，在交付阶段复核、验收并实际执行该脚本一次，脚本产生的最新测试结果和唯一报告再通过最终审计。命令能力受阻时保留已预置脚本并交给用户执行，但只能说明待验证。脚本的报告模式必须与已确认的 `ALLURE` 一致，禁止运行时切换分支。新项目只生成当前 OS 的一份脚本；追加已有项目不删除用户原有的另一平台脚本
+15. **禁止未实跑却声称完成或双脚本交付** — `OS_TYPE`、`PYTHON` 和 `ALLURE` 锁定后，先预置当前脚本：Darwin/Linux 为 `run.sh`，Windows 为 `run.bat`；再由 agent 直接执行 pytest 和当前报告命令。测试与报告稳定后，在交付阶段复核、验收并实际执行该脚本一次，脚本产生的最新测试结果和唯一报告再通过最终审计。命令能力受阻时保留已预置脚本并交给用户执行，但只能说明待验证。脚本的报告模式必须与已确认的 `ALLURE` 一致，禁止运行时切换分支；物化 `report` 或 `runner` 时脚本会独立实际执行 `allure --version` 复核，模型传入的分支不一致则停止并返回 `ENV_LOCK`。新项目只生成当前 OS 的一份脚本；追加已有项目不删除用户原有的另一平台脚本
 16. **禁止在项目目录外创建任何文件或文件夹** — 所有产出必须全部创建在 `<PROJECT_DIR>/` 内部，测试文件固定放在 `<PROJECT_DIR>/tests/`。用户确认“默认”或“桌面新建”后使用系统真实桌面目录下的 `<service>-api-qa-skill`；用户尚未确认项目位置时禁止自动采用该目录。它不是系统提示词里的工作区或启动目录
 17. **禁止直接调用 requests/httpx 或 mock 传输层** — 所有 HTTP 请求必须通过 `allure_request()` 或 `AuthSession` 实例方法发起，并在 Allure 原始结果中留下请求、预期、响应证据；禁止用 monkeypatch、mock、responses、requests-mock、respx、VCR 等替代目标 API 的真实调用
 18. **快速路径仅用于简单任务** — 接口数 ≤ 5 且无复杂业务逻辑（支付/权限/工作流）时可用。接口数 > 5 或涉及复杂逻辑时，必须走完整 5 阶段
 19. **流程分支确认后不可更改** — 路由阶段用户确认了完整流程/快速路径后，全程锁定不可切换。这里锁定的是流程分支，不是项目目录；不得把“选择快速路径”当成 `PROJECT_DIR` 已确认
-20. **禁止生成双报告入口或调用宿主通用报告器代替模板** — `allure --version` 成功时只生成 `allure-report/index.html`；不可用时只允许由本 Skill 的 `_templates/report_generator.py` 经 `scripts/materialize_templates.py` 物化后生成 `allure-report/report.html`。两种分支互斥；无论哪一分支都禁止调用宿主自身的通用报告构建能力另建 HTML
+20. **禁止生成双报告入口或调用宿主通用报告器代替模板** — `allure --version` 成功时只生成 `allure-report/index.html`；不可用时只允许由本 Skill 的 `_templates/report_generator.py` 经 `scripts/materialize_templates.py` 物化后生成 `allure-report/report.html`。两种分支互斥；物化器与最终审计均会复核实际 Allure 能力，运行脚本发现 fallback 与可用 Allure 冲突时只报错要求重新物化，绝不自行切到另一分支。无论哪一分支都禁止调用宿主自身的通用报告构建能力另建 HTML
 21. **禁止通过 Agent 工具读取或写入凭据** — 不得读取、搜索、打印 `.env` 内容，不得把 Token、API Key、密码或 Cookie 放进工具参数、日志、报告或 `MEMORY.md`。只允许项目配置脚本在进程内保留既有凭据并写非敏感配置或空凭据槽；非空凭据由用户在本地填写并确认完成
 22. **禁止凭单一字段跳过配置确认** — `API_BASE_URL` 与认证方式必须分别确认；其中任一项缺失，都不能因为另一项已存在而跳过
 23. **禁止提前结束或提前标记任务完成** — “测试通过”或“报告已生成”都不等于交付完成。当前 OS 脚本必须已物化、通过权限/语法检查并实际执行一次；随后当前流程的步骤清单必须全部变为 `✅`，且最后一次 `scripts/validate_delivery.py` 必须实际返回 `DELIVERY AUDIT: PASS`，才允许把整个任务标记为完成或输出结束语。缺少脚本实跑结果、项目内 `MEMORY.md`、所选报告或审计通过证据时只能继续处理或如实报告阻塞
@@ -153,7 +153,7 @@ pytest + Allure 框架。**所有测试文件必须位于 `<PROJECT_DIR>/tests/`
 
 **正确示例**：
 ```
-shell_exec(command="<ENTER_PROJECT> <PYTHON_CMD> -m pytest tests/ -v --tb=short --alluredir=allure-results")
+shell_exec(command="<ENTER_PROJECT> <PYTHON_CMD> -m pytest tests/ -v --tb=short --alluredir=allure-results --clean-alluredir")
 ```
 
 ## 环境变量（整个流程中使用）

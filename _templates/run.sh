@@ -24,10 +24,29 @@ if [ -z "$PYTHON" ]; then
 fi
 echo "Using: $PYTHON ($("$PYTHON" --version 2>&1))"
 
-if ! "$PYTHON" -m pip install -q -r requirements.txt; then
-    echo "ERROR: 依赖安装失败"
+verify_report_mode() {
+    if [ "$REPORT_MODE" = "official" ]; then
+        if ! command -v allure >/dev/null 2>&1 || ! allure --version >/dev/null 2>&1; then
+            echo "ERROR: report mode is official but allure is unavailable"
+            return 1
+        fi
+    elif [ "$REPORT_MODE" = "fallback" ]; then
+        if command -v allure >/dev/null 2>&1 && allure --version >/dev/null 2>&1; then
+            echo "ERROR: report mode fallback conflicts with available allure; re-materialize the runner with official mode"
+            return 1
+        fi
+    else
+        echo "ERROR: invalid report mode: $REPORT_MODE"
+        return 1
+    fi
+    return 0
+}
+
+# Check before --clean-alluredir can change results.
+if ! verify_report_mode; then
     exit 1
 fi
+
 "$PYTHON" -m pytest tests/ -v --tb=short --alluredir=allure-results --clean-alluredir "$@"
 TEST_EXIT_CODE=$?
 if [ $TEST_EXIT_CODE -ne 0 ]; then
@@ -40,11 +59,13 @@ if ! find allure-results -maxdepth 1 -type f -name '*-result.json' -print -quit 
     exit 1
 fi
 
+# Recheck immediately before selecting the report generator: the environment
+# may have changed while a long-running test was executing.
+if ! verify_report_mode; then
+    exit 1
+fi
+
 if [ "$REPORT_MODE" = "official" ]; then
-    if ! command -v allure >/dev/null 2>&1 || ! allure --version >/dev/null 2>&1; then
-        echo "ERROR: report mode is official but allure is unavailable"
-        exit 1
-    fi
     allure generate allure-results -o allure-report --clean
     REPORT_EXIT_CODE=$?
     REPORT_PATH="allure-report/index.html"

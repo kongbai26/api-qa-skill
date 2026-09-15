@@ -75,7 +75,7 @@ shell_exec(command="<ENTER_PROJECT> <PYTHON_CMD> \"<SKILL_DIR>/scripts/configure
 
 ## ② 复制报告工具（根据 ALLURE 决定）
 
-先使用阶段一已经实际验证并写入 `<PROJECT_DIR>/MEMORY.md` 的 `ALLURE` 值，禁止在本步骤重新猜测。
+先使用阶段一已经实际验证并写入 `<PROJECT_DIR>/MEMORY.md` 的 `ALLURE` 值，禁止在本步骤重新猜测。物化 `report` 或 `runner` 时，物化脚本还会独立执行 `allure --version`；若输出“报告模式与本机实际 Allure 检测不一致”，不得把它当作普通重试，必须返回 `ENV_LOCK` 重新锁定，不能复制 fallback 或继续生成报告。
 
 **ALLURE=有**：禁止读取或复制 `_templates/report_generator.py`；确认当前报告分支使用官方 Allure 后，将步骤②标记为 `✅` 并进入③。追加已有项目时如原本存在 `utils/report_generator.py`，保留不动，不验证、不覆盖也不删除。
 
