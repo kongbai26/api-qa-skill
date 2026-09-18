@@ -24,7 +24,7 @@
 提交前至少运行：
 
 ```bash
-python -m py_compile scripts/materialize_templates.py scripts/validate_delivery.py _templates/report_generator.py _templates/project/conftest.py _templates/project/utils/request_helper.py
+python -m py_compile scripts/materialize_templates.py scripts/configure_project_env.py _templates/report_generator.py _templates/project/conftest.py _templates/project/utils/request_helper.py _templates/project/utils/contract_probe.py
 bash -n _templates/run.sh
 git diff --check
 ```

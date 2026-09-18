@@ -24,31 +24,17 @@ if [ -z "$PYTHON" ]; then
 fi
 echo "Using: $PYTHON ($("$PYTHON" --version 2>&1))"
 
-verify_report_mode() {
-    if [ "$REPORT_MODE" = "official" ]; then
-        if ! command -v allure >/dev/null 2>&1 || ! allure --version >/dev/null 2>&1; then
-            echo "ERROR: report mode is official but allure is unavailable"
-            return 1
-        fi
-    elif [ "$REPORT_MODE" = "fallback" ]; then
-        if command -v allure >/dev/null 2>&1 && allure --version >/dev/null 2>&1; then
-            echo "ERROR: report mode fallback conflicts with available allure; re-materialize the runner with official mode"
-            return 1
-        fi
-    else
-        echo "ERROR: invalid report mode: $REPORT_MODE"
-        return 1
-    fi
-    return 0
-}
-
-# Check before --clean-alluredir can change results.
-if ! verify_report_mode; then
+if [ "$REPORT_MODE" != "official" ] && [ "$REPORT_MODE" != "fallback" ]; then
+    echo "ERROR: invalid report mode: $REPORT_MODE"
     exit 1
 fi
 
 "$PYTHON" -m pytest tests/ -v --tb=short --alluredir=allure-results --clean-alluredir "$@"
 TEST_EXIT_CODE=$?
+if [ "$TEST_EXIT_CODE" -gt 1 ]; then
+    echo "ERROR: pytest did not complete (exit $TEST_EXIT_CODE); report not regenerated."
+    exit "$TEST_EXIT_CODE"
+fi
 if [ $TEST_EXIT_CODE -ne 0 ]; then
     echo "测试有失败，继续生成报告..."
 fi
@@ -56,12 +42,6 @@ fi
 # 检查 allure-results 是否包含测试结果
 if ! find allure-results -maxdepth 1 -type f -name '*-result.json' -print -quit 2>/dev/null | grep -q .; then
     echo "ERROR: allure-results 中没有 *-result.json，无法生成报告"
-    exit 1
-fi
-
-# Recheck immediately before selecting the report generator: the environment
-# may have changed while a long-running test was executing.
-if ! verify_report_mode; then
     exit 1
 fi
 
@@ -79,9 +59,6 @@ elif [ "$REPORT_MODE" = "fallback" ]; then
     REPORT_EXIT_CODE=$?
     REPORT_PATH="allure-report/report.html"
     UNEXPECTED_REPORT="allure-report/index.html"
-else
-    echo "ERROR: invalid report mode: $REPORT_MODE"
-    exit 1
 fi
 
 if [ $REPORT_EXIT_CODE -ne 0 ] || [ ! -s "$REPORT_PATH" ] || [ -e "$UNEXPECTED_REPORT" ]; then

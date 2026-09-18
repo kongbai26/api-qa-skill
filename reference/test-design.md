@@ -22,7 +22,6 @@ null / 空字符串 / 纯空格 / 类型错配 / 空数组 / 超长文本 / 特�
 ## 代码 3 要素
 
 ```python
-@pytest.mark.api_endpoint(method="<METHOD>", path="<CONTRACT_PATH>")
 @allure.title("接口功能 - 具体验证点")   # ① 中文标题
 def test_xxx(self):
     """描述测什么、为什么。"""             # ② docstring
@@ -36,11 +35,10 @@ def test_xxx(self):
 1. 用例文件固定保存为 `<PROJECT_DIR>/tests/test_<模块名>.py`
 2. 禁止直接调用 `requests`/`httpx` 或 mock 传输层；GET/POST/PUT/PATCH/DELETE/HEAD/OPTIONS 都必须通过 `auth_session` 或 `allure_request`
 3. 每次 HTTP 调用必须传中文 `expected="..."`
-4. 每个 `test_` 函数必须恰好标记一个实际归属接口：`@pytest.mark.api_endpoint(method="GET", path="/contract/path")`。`method + path` 必须与 `MEMORY.md` 的接口清单一致；参数化展开的每个 node 都计入该标记接口。一个测试有多个调用时，标记它的主验证接口，不得用它虚增其他接口数量
-5. 每个 `test_` 函数至少调用一次 `auth_session` 或 `allure_request`；只含 `assert True`、mock 或文字说明的空壳测试不能交付
-6. 每个用例至少包含一个由模型按契约写出的真实判断；校验器只确认判断存在，不决定具体状态码、字段、类型或业务规则
-7. 一个 CRUD/工作流用例可以有准备、主验证和清理请求；`api_endpoint` 标记主验证接口，辅助请求不要求与标记相同，但必须同样经过统一封装并留下证据
-8. 发起有副作用、并发、支付或权限变更测试前，必须已有用户确认的测试环境/授权和清理策略；未确认不得执行
+4. 每个用例必须通过 `auth_session`、`allure_request` 或项目内基于它们的公共助手发起真实请求；只含 `assert True`、mock 或文字说明的空壳测试不能交付
+5. 每个用例至少包含一个由模型按契约写出的真实判断；框架不决定具体状态码、字段、类型或业务规则
+6. 一个 CRUD/工作流用例可以有准备、主验证和清理请求；辅助请求同样经过统一封装，模型按主验证接口统计归属，不增加只为机器审计服务的 marker
+7. 发起有副作用、并发、支付或权限变更测试前，必须已有用户确认的测试环境/授权和清理策略；未确认不得执行
 
 ## 断言写法
 
@@ -52,4 +50,4 @@ def test_xxx(self):
 - 非法输入优先使用 `pytest.mark.parametrize` 表达等价类和边界，每组数据都保留中文含义和契约依据。
 - 限流或时间窗口测试以契约规定的窗口、阈值、响应码和 `Retry-After` 语义判断；需要等待时采用最小必要等待，不把“成功或限流都算通过”作为通用断言。
 
-用例数量以 `pytest --collect-only -q` 展开后的测试 node 为准。参数化的每个实例计为一条；审计会按 `api_endpoint` 标记反算各接口 node 数，必须同时等于 MEMORY 的接口计数表与 pytest collected 总数。
+用例数量以 `pytest --collect-only -q` 展开后的测试 node 为准。参数化的每个实例计为一条；模型根据测试代码整理每个接口的 node 数，合计必须等于 pytest collected 总数。

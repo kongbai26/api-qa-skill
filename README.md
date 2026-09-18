@@ -28,11 +28,11 @@ Most testing agents fall into common traps: hallucinating API responses, writing
   * **When Allure works**: Generates only the official static entry `allure-report/index.html`.
   * **When Allure is unavailable**: Uses the built-in Python generator to create only `allure-report/report.html`.
   * The two report entries are mutually exclusive. The runner keeps the report mode verified when the project was generated, and no server or browser is opened automatically.
-  * Delivery validation parses report assets or embedded data and reconciles their statistics with the raw results instead of relying on fixed line-count or file-size thresholds.
+  * Final delivery only confirms that the locked report entry exists and that the other entry was not generated; report correctness is established in the test/report stage, not re-audited during handoff.
 * 📐 **9-Dimension Industrial Test Coverage**: Functional happy paths, data integrity, authentication/authorization, parameter validation, boundary values, business rules, security/injection defense, CRUD chaining, and unified error format.
 * 🔄 **Self-Healing Debug Loop (Up to 5 Rounds)**：Automatically runs the test suite, parses tracebacks, fixes test-code issues, and records confirmed API discrepancies without classifying failures by retry count alone.
 * ⚡ **Local & Cloud Model Friendly**: Stage instructions are loaded progressively, while deterministic project assets are copied by a helper without injecting their source into the model context. This removes the largest avoidable prompt payload for small local models.
-* 📦 **Turnkey Cross-Platform Execution**: Detects the current OS and prepositions one matching runner: `run.sh` on macOS/Linux or `run.bat` on Windows. The runner is pinned to the confirmed report mode, executed before final delivery, and its latest outputs are audited. If command execution is blocked, the runner remains available for the user without a false completion claim.
+* 📦 **Turnkey Cross-Platform Execution**: Detects the current OS and prepositions one matching runner: `run.sh` on macOS/Linux or `run.bat` on Windows. The runner is pinned to the confirmed report mode. Final delivery checks that the file is present; if commands were not run, the Agent gives the user the exact manual command without claiming execution.
 
 ---
 
@@ -51,8 +51,7 @@ api-qa-skill/
 │   └── report_generator.py      # Built-in standalone HTML fallback generator
 ├── scripts/
 │   ├── configure_project_env.py # Credential-preserving project-local .env merger
-│   ├── materialize_templates.py # Branch-aware, non-overwriting asset materializer
-│   └── validate_delivery.py     # Final semantic delivery audit
+│   └── materialize_templates.py # Branch-aware, non-overwriting asset materializer
 └── reference/
     ├── implementation.md        # Read only for existing-file conflicts or dynamic auth
     ├── test-design.md           # 9-dimension test design specifications & contract assertion guide
@@ -63,7 +62,7 @@ api-qa-skill/
         ├── stage-2-setup.md     # Full Workflow Stage 2: Framework Setup & Endpoint Probing
         ├── stage-3-write.md     # Full Workflow Stage 3: 9-Dimension Test Generation
         ├── stage-full-test.md   # Full Workflow Stage 4: Test Execution & Self-Healing Loop
-        ├── stage-5-deliver.md   # Full Workflow Stage 5: Verification & Asset Delivery
+        ├── stage-5-deliver.md   # Full Workflow Stage 5: File Confirmation & Asset Delivery
         ├── stage-quick-setup.md # Quick Path Stage 1: Rapid Environment Setup
         └── stage-quick.md       # Quick Path Stage 2: Combined Probing, Coding & Reporting
 ```
@@ -72,7 +71,7 @@ api-qa-skill/
 
 ## 🛠️ Installation & Universal Usage
 
-`api-qa-skill` is a **host-neutral, model-agnostic Agent workflow**. It works on any host that can load the complete skill directory and provide equivalent file read/write, recursive file listing, shell/Python execution, and HTTP access. Task tracking is optional because the workflow has a text-checklist fallback. A chat-only host without filesystem or execution access can review the specification, but cannot claim to have generated or audited a runnable project.
+`api-qa-skill` is a **host-neutral, model-agnostic Agent workflow**. It works on any host that can load the complete skill directory and provide equivalent file read/write, recursive file listing, shell/Python execution, and HTTP access. Task tracking is optional because the workflow has a text-checklist fallback. A chat-only host without filesystem or execution access can review the specification, but cannot claim to have generated a runnable project.
 
 ### 1. Quick Clone
 Clone this repository into your local environment:
@@ -98,7 +97,7 @@ Please read and strictly follow the engineering protocol in `./api-qa-skill/SKIL
 
 Do not rewrite the workflow for individual products. Bind the host's native tools to these capabilities once: locate the loaded skill directory, read and write files, enumerate a project recursively, run shell/Python commands, and make real HTTP calls. If task-list tools exist, use them; otherwise maintain the same checklist in the conversation. Keep the **entire directory** available because `SKILL.md` progressively loads stage references and invokes scripts/templates by path; uploading only `SKILL.md` is insufficient for execution.
 
-The workflow preserves the original hard gates: the user must explicitly select the workflow, confirm the project directory, authorize or specify environment detection, and resolve the API base URL/authentication before project work begins. Host workspace metadata, CWD, and tool defaults never count as project-directory confirmation. Full workflow execution also waits for explicit plan approval, and completion remains blocked until every stage item is checked and the delivery audit passes.
+The workflow preserves the original hard gates: the user must explicitly select the workflow, confirm the project directory, authorize or specify environment detection, and resolve the API base URL/authentication before project work begins. Host workspace metadata, CWD, and tool defaults never count as project-directory confirmation. Full workflow execution also waits for explicit plan approval, and completion remains blocked until every stage item is checked and all required delivery files are present.
 
 ---
 

@@ -66,7 +66,12 @@ def _sanitize(value, parent_key=""):
             parsed = json.loads(value)
         except (json.JSONDecodeError, TypeError):
             return _sanitize_text(value)
-        return _sanitize(parsed)
+        # JSON 文本可按字段脱敏，但业务字符串不能变成数值、布尔或对象。
+        if isinstance(parsed, (dict, list, str)):
+            sanitized = _sanitize(parsed)
+            if sanitized != parsed:
+                value = json.dumps(sanitized, ensure_ascii=False)
+        return _sanitize_text(value)
     return value
 
 

@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Safely inspect one API response before writing contract assertions.
 
-The program reads project-local .env at runtime.  It never prints credentials,
-headers, query values, or response values: stdout contains only a status code
-and a redacted response shape that can be recorded in MEMORY.md.
+The program loads project-local .env at runtime and sends requests through
+AuthSession. Stdout contains the method/path, status code, Content-Type, and a
+sanitized response preview capped at 2000 characters for recording in MEMORY.md.
+Recognized credential fields and configured token/password values are redacted.
 """
 
 from __future__ import annotations
@@ -17,7 +18,7 @@ from typing import Any
 
 from dotenv import load_dotenv
 
-from utils.request_helper import AuthSession, _is_secret_key
+from utils.request_helper import AuthSession, _is_secret_key, _render
 
 
 METHODS = ("GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS")
@@ -25,7 +26,7 @@ STATIC_AUTH_MODES = {"none", "bearer", "header", "query", "cookie", "basic"}
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="安全探测一个 API 的状态码和响应结构")
+    parser = argparse.ArgumentParser(description="安全探测一个 API 的状态码和脱敏实际响应")
     parser.add_argument("--method", required=True, choices=METHODS)
     parser.add_argument("--path", required=True, help="不含凭据的接口路径")
     params = parser.add_mutually_exclusive_group()
@@ -125,27 +126,6 @@ def contains_secret_field(value: Any) -> bool:
     return False
 
 
-def response_shape(value: Any, depth: int = 0) -> Any:
-    if depth >= 3:
-        return "…"
-    if isinstance(value, dict):
-        return {
-            str(key): "<redacted>" if _is_secret_key(key) else response_shape(item, depth + 1)
-            for key, item in value.items()
-        }
-    if isinstance(value, list):
-        return [] if not value else [response_shape(value[0], depth + 1)]
-    if value is None:
-        return "null"
-    if isinstance(value, bool):
-        return "boolean"
-    if isinstance(value, (int, float)):
-        return "number"
-    if isinstance(value, str):
-        return "string"
-    return type(value).__name__
-
-
 def main() -> int:
     args = parse_args()
     try:
@@ -222,14 +202,14 @@ def main() -> int:
             kwargs["json"] = body
         response = getattr(session, args.method.lower())(
             args.path,
-            expected="安全探测：记录状态码与响应结构，不记录敏感值",
+            expected="安全探测：记录状态码与脱敏后的实际响应，不记录凭据",
             **kwargs,
         )
         try:
             payload = response.json()
-            body_shape = response_shape(payload)
+            body_preview = _render(payload, limit=2000)
         except ValueError:
-            body_shape = {"text": "string", "length": len(response.content)}
+            body_preview = _render(response.text, limit=2000)
     except Exception as exc:  # 请求异常不得回显可能含 URL 或凭据的原文。
         print(f"PROBE: FAIL\n- 请求失败: {type(exc).__name__}")
         return 1
@@ -240,7 +220,7 @@ def main() -> int:
         "path": args.path,
         "status": response.status_code,
         "content_type": response.headers.get("Content-Type", "").split(";", 1)[0],
-        "body_shape": body_shape,
+        "body_preview": body_preview,
     }, ensure_ascii=False, sort_keys=True))
     return 0
 

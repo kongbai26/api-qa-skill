@@ -17,7 +17,7 @@ from urllib.parse import urlsplit
 
 AUTH_MODES = {"none", "bearer", "header", "query", "cookie", "basic", "dynamic"}
 ENV_KEY = re.compile(r"^[A-Z][A-Z0-9_]*$")
-LINE_KEY = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)=")
+LINE_KEY = re.compile(r"^[ \t]*(?:export[ \t]+)?([A-Za-z_][A-Za-z0-9_]*)[ \t]*=")
 SKILL_ROOT = Path(__file__).resolve().parent.parent
 
 

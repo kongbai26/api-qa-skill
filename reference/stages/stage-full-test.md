@@ -19,7 +19,7 @@
 ⬜ 6. 更新 `<PROJECT_DIR>/MEMORY.md` 结果统计 + 修复记录
 ```
 
-**执行规则**：进入本阶段时按上述 6 项建立同一份任务清单；`task_add` 可用时必须在步骤①前逐项调用并保存 `task_ref`，不能只在计划中复述。每完成一项并取得可核验结果后，立即通过 `task_update`（不可用时更新文本清单）将对应 `⬜` 改为 `✅`，条件项经结果证明无需动作时也必须记录该结论并标为 `✅`，不得标记为 `skipped`。6 项全部打勾并经 `task_tree` 复核后才能进入阶段五。首次全部通过 → 步骤②后依次确认③无失败、④无需修复、⑤当前报告已是最新，再进入⑥；5 轮后仍有失败 → 按证据完成③-⑤并记录为断言、代码、环境、接口差异或未决问题，再进入⑥。
+**执行规则**：仅首次进入本阶段时按上述 6 项建立同一份任务清单；等待用户或恢复执行后复用原清单，从首个未完成项继续。`task_add` 可用时必须在步骤①前逐项调用并保存 `task_ref`，不能只在计划中复述。每完成一项并取得可核验结果后，立即通过 `task_update`（不可用时更新文本清单）将对应 `⬜` 改为 `✅`，条件项经结果证明无需动作时也必须记录该结论并标为 `✅`，不得标记为 `skipped`。6 项全部打勾并经 `task_tree` 复核后才能进入阶段五。首次全部通过 → 步骤②后依次确认③无失败、④无需修复、⑤当前报告已是最新，再进入⑥；5 轮后仍有失败 → 按证据完成③-⑤并记录为断言、代码、环境、接口差异或未决问题，再进入⑥。
 
 ---
 
@@ -31,7 +31,7 @@ shell_exec(command="<ENTER_PROJECT> <PYTHON_CMD> -m pytest tests/ -v --tb=short 
 
 ⚠️ **关键**：pytest 必须传 `--alluredir=allure-results --clean-alluredir`，否则报告可能缺少结果或混入旧数据！
 
-如果测试命令能力不可用或被拒绝，不重试、不把它当成测试失败，也不进入阶段五。保留阶段二已预置的当前 OS 脚本，保持本阶段未执行项为 `⬜`，给出项目内脚本绝对路径和手动命令，请用户自行执行；不得声称报告或交付审计已通过。
+如果测试命令能力不可用或被拒绝，不重试、不把它当成测试失败，也不生成虚假结果。保留阶段二已预置的当前 OS 脚本，给出项目内脚本绝对路径和手动命令，请用户自行执行；最终交付说明必须明确标记“未实跑”。
 
 ⚠️ **pytest 报错诊断与修复**：
 
@@ -56,14 +56,6 @@ shell_exec(command="<ENTER_PROJECT> <PYTHON_CMD> -m pytest tests/ -v --tb=short 
 
 **根据阶段一检测的 ALLURE 变量决定报告方式**：
 
-生成前先执行路径无关的报告产物扫描；`<REPORT_MODE>` 按已锁定的 `ALLURE` 替换为 `official` 或 `fallback`：
-
-```text
-shell_exec(command="<ENTER_PROJECT> <PYTHON_CMD> \"<SKILL_DIR>/scripts/validate_delivery.py\" --project \"<PROJECT_DIR>\" --report <REPORT_MODE> --report-artifacts-only")
-```
-
-扫描为 `PASS` 才能继续；该扫描也会实际复核 `allure --version` 与已锁定分支。扫描为 `BLOCKED` 时保持列出的既有报告不动；若原因是报告分支不一致，返回 `ENV_LOCK` 重新锁定，不能直接执行 fallback 或官方命令。其他冲突登记“等待用户”并询问如何处理，用户明确处理前禁止生成新报告或进入后续步骤。
-
 **如果有 allure（ALLURE=有）** → 只生成官方 Allure 报告，入口为 `allure-report/index.html`：
 ```
 shell_exec(command="<ENTER_PROJECT> allure generate allure-results -o allure-report --clean")
@@ -77,11 +69,13 @@ shell_exec(command="<ENTER_PROJECT> <PYTHON_CMD> utils/report_generator.py --inp
 
 两条分支互斥，只保留所选入口，禁止同时生成 `index.html` 和 `report.html`；无论哪一分支都禁止调用宿主通用报告器代替模板或另建报告。
 
-报告扫描或生成命令能力不可用/被拒绝时，不重试、不伪造报告，也不进入阶段五。保留阶段二已预置脚本，给出脚本绝对路径和手动命令，请用户自行执行；本阶段尚未执行及其后清单项保持 `⬜`。
+报告生成命令能力不可用或被拒绝时，不重试、不伪造报告。保留阶段二已预置脚本，给出脚本绝对路径和手动命令，请用户自行执行；最终交付说明如实标记报告尚未生成。
 
 ⚠️ 如果报告生成失败：
 - `未找到 allure-results/*-result.json` → 步骤①的 `--alluredir` 参数没传，重新跑步骤①
 - 其他错误 → 检查 allure-results 目录是否有内容
+
+生成后只检查一次锁定分支的入口：`ALLURE=有` 时确认 `allure-report/index.html` 存在且非空、`report.html` 不存在；`ALLURE=无` 时反之。不要扫描项目内其他 HTML/Markdown，也不要解析报告内部资源。
 
 ---
 

@@ -8,8 +8,6 @@ import hashlib
 import os
 from pathlib import Path
 import re
-import shutil
-import subprocess
 import sys
 
 
@@ -30,44 +28,6 @@ WINDOWS_PYTHON = re.compile(r"^[A-Za-z0-9_ .:\\/()+-]+$")
 
 class MaterializeError(ValueError):
     pass
-
-
-def detect_report_mode() -> str:
-    """Select the only report branch supported by the current host.
-
-    ``which`` alone is not sufficient: an unusable or stale executable must
-    not make a project appear to have official Allure support.
-    """
-    allure = shutil.which("allure")
-    if not allure:
-        return "fallback"
-    try:
-        completed = subprocess.run(
-            [allure, "--version"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            timeout=15,
-            check=False,
-        )
-    except (OSError, subprocess.TimeoutExpired):
-        return "fallback"
-    return "official" if completed.returncode == 0 else "fallback"
-
-
-def lock_report_mode(args: argparse.Namespace) -> str | None:
-    """Refuse a model-provided report branch that contradicts the host."""
-    if args.component not in {"report", "runner"}:
-        return None
-    if not args.report:
-        raise MaterializeError(f"{args.component} 需要 --report")
-    actual = detect_report_mode()
-    if args.report != actual:
-        raise MaterializeError(
-            "--report 与本机实际 Allure 检测不一致："
-            f"requested={args.report}, detected={actual}。"
-            "请返回 ENV_LOCK，按 `allure --version` 的结果重新锁定后再物化。"
-        )
-    return actual
 
 
 def parse_args() -> argparse.Namespace:
@@ -195,12 +155,10 @@ def build_plan(args: argparse.Namespace) -> list[tuple[Path, Path, bytes, int | 
 
 
 def materialize(args: argparse.Namespace) -> int:
-    # Validate the locked branch and the requested asset before project_path(),
-    # so any invalid request fails without creating an empty candidate directory.
-    locked_report = lock_report_mode(args)
+    # Validate the requested asset before project_path(), so an invalid request
+    # fails without creating an empty candidate directory. Report selection was
+    # already locked during ENV_LOCK and must not be re-detected here.
     plan = build_plan(args)
-    if locked_report:
-        print(f"- REPORT MODE CHECK: PASS ({locked_report})")
     project = project_path(args.project)
     prepared: list[tuple[Path, Path, bytes, int | None, str]] = []
 
