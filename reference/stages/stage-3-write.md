@@ -1,60 +1,58 @@
 # 阶段三：写用例
 
-> **⛔ reference 按步骤读取：①读取 `reference/test-design.md`。禁止在进入本阶段前预读。**
+> 进入步骤①时完整读取 `reference/test-design.md`，不要提前读取其他 reference。
 
-> **MEMORY 文件边界**：本阶段所有 `MEMORY.md` 均指 `<PROJECT_DIR>/MEMORY.md`，必须用文件写入工具追加，供用户查看；不得使用 Agent 工作区记忆、数据库、`memory_save` 或 `memory_recall` 保存或恢复本流程数据。
-
-## 目标
-
-按规范编写测试用例，数量达标。
-
-## 步骤清单（执行时必须逐项打勾，跳过禁止）
-
-```
-⬜ 1. 按 9 维度编写测试用例（GET ≥8，POST ≥15）
-⬜ 2. 运行 pytest --collect-only -q 自检用例数
-⬜ 3. 核对数量并按需补充（已达标则确认无需补充）
-⬜ 4. 更新 `<PROJECT_DIR>/MEMORY.md` 覆盖矩阵
-```
-
-**执行规则**：仅首次进入本阶段时按上述 4 项建立同一份任务清单；等待用户或恢复执行后复用原清单，从首个未完成项继续。`task_add` 可用时必须在步骤①前逐项调用并保存 `task_ref`，不能只在计划中复述。每完成一项并取得可核验结果后，立即通过 `task_update`（不可用时更新文本清单）将对应 `⬜` 改为 `✅`；步骤③在 collection 证明数量已达标时也视为完成，不标记为 `skipped`。4 项全部打勾并经 `task_tree` 复核后才能进入阶段四。
-
-开始步骤①前，先完整读取测试设计规范；如有分页，必须读到 `has_more=false`：
+## 清单
 
 ```text
-read_file(path="<SKILL_DIR>/reference/test-design.md")
+⬜ 1. 按 9 个维度编写测试用例
+⬜ 2. 运行 pytest --collect-only -q
+⬜ 3. 核对并补齐每个接口的数量
+⬜ 4. 更新 MEMORY.md 覆盖矩阵
 ```
 
-## 规则（详见 reference/test-design.md）
+按顺序处理第一个未完成项，取得证据后立即打勾。四项全部完成后才能进入阶段四。
 
-- **硬性下限按单个接口计算**：每个 GET ≥8 条；每个 POST ≥15 条。参数化用例按 pytest 实际展开后的 node 数计数
-- **完整流程总体目标**：所有接口的平均用例数达到 15-20；这是总体目标，不替代 GET/POST 的单接口硬性下限
-- **GET ≥8 条**：正向 + 参数化 + 字段 + 认证（仅认证 API）+ 无效参数 + 边界 + 安全
-- **POST ≥15 条**：正向 + 字段 + 认证（仅认证 API）+ 缺必填(每个字段各缺一次) + 空值 + 边界(max/max+1) + 业务规则 + 安全 + 格式
-- 一个有 5 必填 + 3 约束的 POST 接口约 25 条，只有 5-8 条说明维度被跳过
-- API 明确无需认证时，禁止臆造 401/403 用例；将认证维度替换为该接口的核心数据完整性或业务规则验证
-- 每个用例必须通过统一 HTTP 请求封装发出真实请求，并包含由模型依据契约写出的有效断言；禁止空壳测试、传输层 mock 或为了凑数把用例归到无关接口
-- 动态认证 API：先写一个使用已确认项目专用 fixture 的最小真实用例，单独运行并记录状态码/脱敏结构；通过后才扩展该接口的其他覆盖维度
+## ① 编写用例
 
-## 写完自检
+读取：
 
-```
-shell_exec(command="<ENTER_PROJECT> <PYTHON_CMD> -m pytest tests/ --collect-only -q")
+```text
+<SKILL_DIR>/reference/test-design.md
 ```
 
-如果 collection 命令能力不可用或被拒绝，不重试、不估算数量，也不进入阶段四。保留阶段二已预置的当前 OS 脚本，给出脚本绝对路径及手动命令（Darwin/Linux：`cd "<PROJECT_DIR>" && chmod +x run.sh && ./run.sh`；Windows：`cd /d "<PROJECT_DIR>" && call run.bat`），请用户自行执行；不得声称用例计数或报告已完成。
+按已确认契约和阶段二的真实响应编写测试：
 
-根据最终 collection 输出建立“方法 + 路径 + 展开后 node 数”表：
+- 每个 GET 至少 8 个展开后的 node；每个 POST 至少 15 个；总体平均目标 15–20。
+- 每个用例通过 `allure_request` 或 `AuthSession` 发真实请求，包含中文 `allure.title`、中文 docstring、中文 `expected` 和有效断言。
+- 无认证 API 不臆造 401/403；用数据完整性或业务规则补足维度。
+- 动态认证先运行一个使用项目专用 fixture 的最小真实用例，取得脱敏结果后再扩展。
+- 禁止空壳、`assert True`、传输层 mock、与接口无关的凑数用例，以及为通过测试而放宽契约。
 
-1. 每个参数化实例按一个 node 计数，不按函数定义数估算
-2. 由模型根据测试代码和参数化展开结果整理接口归属；表内各接口 node 数之和必须等于 pytest 输出的 collected 总数，禁止凭估算交付
-3. 逐接口检查 GET ≥8、POST ≥15；不足则补齐
-4. 再检查所有接口平均数是否达到 15-20 的总体目标；若因契约范围客观无法达到，在 MEMORY 的 `## 用例不足说明` 逐接口写明理由，不得静默略过
+## ② 收集计数
 
-## 产出
+```text
+<ENTER_PROJECT> <PYTHON_CMD> -m pytest tests/ --collect-only -q
+```
 
-📝 `<PROJECT_DIR>/MEMORY.md`：在 `## 用例计数` 使用固定前三列“方法 | 路径 | 展开后 node 数”，路径必须与 `## 接口清单` 一致；同时追加每个文件的用例数和 `## 覆盖矩阵`。在 `## 阶段记录` 追加 `### 阶段三 - YYYY-MM-DD`，非空记录“完成、发现、决策”。**必须更新该项目文件，追加本阶段产出。**
+命令不可用或被拒绝时不估算、不进入阶段四；保留阶段二的 runner，并给用户手动命令。
 
-## 保存边界
+## ③ 核对数量
 
-只写 `<PROJECT_DIR>/MEMORY.md`。不得把本流程的项目配置或阶段产出额外写入 Agent 数据库、project-memory 或会话工作区。
+根据 collection 输出建立“方法 | 路径 | 展开后 node 数”表：
+
+1. 参数化实例按实际 node 计数。
+2. 各接口 node 数之和等于 pytest collected 总数。
+3. 逐接口检查 GET ≥8、POST ≥15，不足就补。
+4. 平均数未达到 15 时，只能在契约确实无法产生有效场景的情况下逐接口写明理由。
+
+## ④ 更新项目记录
+
+在 `<PROJECT_DIR>/MEMORY.md` 追加：
+
+- `## 用例计数`：方法、路径、展开后 node 数及总数
+- `## 覆盖矩阵`
+- `### 阶段三 - YYYY-MM-DD`：实际完成、发现和决定
+- 必要时的 `## 用例不足说明`
+
+只写项目 MEMORY，不写 Agent 记忆或数据库。完成后读取 `stage-full-test.md`。

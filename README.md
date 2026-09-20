@@ -21,9 +21,9 @@ Most testing agents fall into common traps: hallucinating API responses, writing
 
 * 🛡️ **Live Probing & Contract Assertions**: Prohibits guessing server responses. The Agent probes first to identify documentation differences, then writes assertions against the confirmed contract instead of weakening them merely to pass.
 * 🚦 **Human-in-the-Loop Quality Gates**:
-  * **Routing Gate**: Automatically routes to the Quick Path (≤ 5 simple endpoints) or Full Workflow (> 5 endpoints or complex business logic), preventing silent quality degradation.
-  * **Environment Gate**: Verifies `<PROJECT_DIR>`, Python runtime, and authentication credentials upfront.
-  * **Planning Gate**: Confirms test scope and expected case counts with the user before writing test code.
+  * **Routing Gate**: For ≤ 5 simple endpoints, presents both paths and lets the user choose; > 5 endpoints or complex business logic must use the Full Workflow, preserving the original quality rule.
+  * **Environment Gate**: Verifies `<PROJECT_DIR>`, Python runtime, report branch, Base URL, and authentication method upfront without exposing credentials.
+  * **Planning Gate**: The Full Workflow confirms test scope and expected case counts with the user before writing test code.
 * 📊 **Single-Entry Conditional Reporting**:
   * **When Allure works**: Generates only the official static entry `allure-report/index.html`.
   * **When Allure is unavailable**: Uses the built-in Python generator to create only `allure-report/report.html`.
@@ -97,7 +97,7 @@ Please read and strictly follow the engineering protocol in `./api-qa-skill/SKIL
 
 Do not rewrite the workflow for individual products. Bind the host's native tools to these capabilities once: locate the loaded skill directory, read and write files, enumerate a project recursively, run shell/Python commands, and make real HTTP calls. If task-list tools exist, use them; otherwise maintain the same checklist in the conversation. Keep the **entire directory** available because `SKILL.md` progressively loads stage references and invokes scripts/templates by path; uploading only `SKILL.md` is insufficient for execution.
 
-The workflow preserves the original hard gates: the user must explicitly select the workflow, confirm the project directory, authorize or specify environment detection, and resolve the API base URL/authentication before project work begins. Host workspace metadata, CWD, and tool defaults never count as project-directory confirmation. Full workflow execution also waits for explicit plan approval, and completion remains blocked until every stage item is checked and all required delivery files are present.
+The workflow preserves the original hard gates: the user must explicitly select the workflow, confirm the project directory, authorize or specify environment detection, and resolve the API base URL/authentication before project work begins. Continuation, reuse, and correction are decided once at entry; stage files then run their checklists linearly. Host workspace metadata, CWD, and tool defaults never count as project-directory confirmation. Full workflow execution also waits for explicit plan approval, and completion remains blocked until every stage item is checked and all required delivery files are present.
 
 ---
 
@@ -109,7 +109,7 @@ The workflow preserves the original hard gates: the user must explicitly select 
 | **Stage Progression** | 5 discrete stages separated by strict verification gates | 2 consolidated stages for fast execution |
 | **Case Volume** | GET ≥ 8, POST ≥ 15, avg. 15–20 cases per endpoint | 3–5 core cases per endpoint (total ≥ endpoint count × 3) |
 | **Coverage Scope** | All 9 industrial dimensions (boundary, concurrency, security, chaining) | 3 core dimensions (happy path, auth, boundary errors) |
-| **Deliverables** | Test suite + one HTML report + Test Specs + API Discrepancy Log | Test suite + one HTML report + Runner scripts + MEMORY Log |
+| **Deliverables** | Test suite + one HTML report + Test Specs + API Discrepancy Log | Test suite + one HTML report + one current-OS runner + MEMORY Log |
 
 ---
 
